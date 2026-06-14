@@ -1,0 +1,38 @@
+export const PROTOCOL_DETAILS = [
+  {
+    id: 'oral',
+    name: 'Oral Minoxidil',
+    dose: '2.5mg · once daily',
+    timing: 'Morning with food',
+    status: 'active',
+    evidence: 'Strong — multiple RCTs',
+    notes: 'Systemic vasodilation. Superior density gains vs topical alone. Takes 3–6 months to show effect.',
+  },
+  {
+    id: 'topical',
+    name: 'Novegrow 10% Solution',
+    dose: '1mL liquid · nightly',
+    timing: 'On dry scalp, let sit 4h',
+    status: 'active',
+    evidence: 'Strong — FDA approved 30+ years',
+    notes: 'Apply to hairline, crown, temples. Part hair to reach scalp. Do not rinse out.',
+  },
+  {
+    id: 'lllt',
+    name: 'Red Light Comb (LLLT)',
+    dose: '15 min · 3× per week',
+    timing: 'Any time, dry hair',
+    status: 'active',
+    evidence: 'Moderate — Hairmax RCTs',
+    notes: '650nm photobiomodulation increases follicular ATP. Slow comb movements, 4 sec per section.',
+  },
+  {
+    id: 'dutalin',
+    name: 'Dutasteride 0.5mg',
+    dose: '0.5mg · Mon + Thu',
+    timing: 'Same time each dose day',
+    status: 'active',
+    evidence: 'Very Strong — superior to finasteride in RCTs',
+    notes: 'Inhibits both Type I and II 5α-reductase. Greater DHT suppression (~90% vs ~70%). 2× weekly protocol.',
+  },
+];

@@ -1,0 +1,10 @@
+export const APP_VERSION = '1.0.0';
+export const BUILD_NUMBER = 1;
+export const MODEL = 'claude-sonnet-4-6';
+export const CHECKPOINT_DATE = new Date('2026-09-01');
+export const RESEARCH_CACHE_TTL_MS = 48 * 60 * 60 * 1000;
+export const INSIGHTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+export const EXPLORE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+export const MAX_CHAT_HISTORY = 40;
+export const MAX_CHAT_CONTEXT_MESSAGES = 12;
+export const SUPABASE_URL = 'https://zfmpbhtpytaoprxrzujv.supabase.co';
