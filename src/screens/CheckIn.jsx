@@ -91,7 +91,7 @@ export default function CheckIn() {
       if (existing) { setForm(existing); setHadPrior(true); }
       setCustomProtocols(protocols.filter(p => p.active));
       if (existing?.customValues) setCustomValues(existing.customValues);
-    });
+    }).catch(() => {});
   }, [today]);
 
   const field = key => val => { setForm(f => ({ ...f, [key]: val })); setSaved(false); };
