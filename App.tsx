@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React, { useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -85,9 +85,11 @@ export default function App() {
           screenOptions={{
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: '#000000',
-              borderTopColor: '#1C1C1E',
-              borderTopWidth: 1,
+              backgroundColor: 'rgba(0,0,0,0.92)',
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: 'rgba(255,255,255,0.08)',
+              paddingBottom: 4,
+              height: 60,
             },
             tabBarActiveTintColor: '#3B82F6',
             tabBarInactiveTintColor: '#8E8E93',

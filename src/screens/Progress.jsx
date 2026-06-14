@@ -266,7 +266,7 @@ export default function Progress() {
       const derivedPh = str >= 30 ? { ...ph, streak30: true } : ph;
       if (str >= 30 && !ph.streak30) set('phase1', derivedPh);
       setPhase1(derivedPh);
-    });
+    }).catch(() => {});
   }, []);
 
   const togglePhase1 = async (id) => {
@@ -368,8 +368,10 @@ export default function Progress() {
                               {
                                 width: cellSize,
                                 height: cellSize,
-                                borderRadius: Math.max(3, Math.floor(cellSize * 0.18)),
+                                borderRadius: Math.max(6, Math.floor(cellSize * 0.18)),
                                 backgroundColor: getCellColor(day),
+                                borderWidth: StyleSheet.hairlineWidth,
+                                borderColor: 'rgba(255,255,255,0.04)',
                               },
                               isToday && { borderWidth: 2, borderColor: '#3B82F6' },
                             ]}
@@ -456,10 +458,21 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { marginBottom: 24 },
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
-  title: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 40, marginTop: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   section: { marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  card: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   streakCard: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 },
   streakNum: { fontSize: 56, fontWeight: '900', lineHeight: 60, marginVertical: 4 },
   streakSub: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },

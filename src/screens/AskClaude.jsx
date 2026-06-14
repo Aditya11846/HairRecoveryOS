@@ -280,6 +280,8 @@ export default function AskClaude() {
             style={s.msgFlatList}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="interactive"
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
             ListFooterComponent={
               <>
                 {loading && (

@@ -19,6 +19,10 @@ const toSupabaseRow = (local) => ({
   sleep: typeof local.sleep === 'number' ? local.sleep : null,
   stress: typeof local.stress === 'number' ? local.stress : null,
   notes: local.notes || '',
+  // NOTE: dutasteride column needs to be added to Supabase checkins table
+  // Run in Supabase SQL editor: ALTER TABLE checkins ADD COLUMN dutasteride boolean;
+  // Once confirmed, uncomment the line below:
+  // dutasteride: local.dutasteride ?? null,
 });
 
 const fromSupabaseRow = (row) => ({
@@ -85,8 +89,7 @@ export const syncPendingCheckins = async () => {
     const checkinKeys = allKeys.filter(k => k.startsWith(`${PREFIX}checkin_`));
     if (!checkinKeys.length) return;
 
-    const pairs = await AsyncStorage.multiGet(checkinKeys);
-    const result = Object.fromEntries(pairs);
+    const result = await AsyncStorage.getMany(checkinKeys);
     const unsynced = Object.values(result)
       .filter(Boolean)
       .map(v => { try { return JSON.parse(v); } catch { return null; } })
@@ -118,8 +121,7 @@ export const getStreakCount = async () => {
     d.setDate(today.getDate() - i);
     return getCheckinKey(d.toISOString().split('T')[0]);
   });
-  const pairs = await AsyncStorage.multiGet(keys);
-  const result = Object.fromEntries(pairs);
+  const result = await AsyncStorage.getMany(keys);
   let streak = 0;
   for (const key of keys) {
     const entry = result[key] ? JSON.parse(result[key]) : null;
@@ -136,8 +138,7 @@ export const getRecentCheckins = async (days = 7) => {
     d.setDate(today.getDate() - i);
     return getCheckinKey(d.toISOString().split('T')[0]);
   });
-  const pairs = await AsyncStorage.multiGet(keys);
-  const result = Object.fromEntries(pairs);
+  const result = await AsyncStorage.getMany(keys);
   return keys.filter(k => result[k] !== null).map(k => JSON.parse(result[k]));
 };
 
@@ -153,8 +154,7 @@ export const getLast30Days = async () => {
       month: d.getMonth(),
     };
   });
-  const pairs = await AsyncStorage.multiGet(meta.map(m => m.key));
-  const result = Object.fromEntries(pairs);
+  const result = await AsyncStorage.getMany(meta.map(m => m.key));
   return meta.map(m => ({
     date: m.date,
     dayNum: m.dayNum,
@@ -177,8 +177,7 @@ export const getLastNDays = async (n = 84) => {
       dow: d.getDay(),
     };
   });
-  const pairs = await AsyncStorage.multiGet(meta.map(m => m.key));
-  const result = Object.fromEntries(pairs);
+  const result = await AsyncStorage.getMany(meta.map(m => m.key));
   return meta.map(m => ({
     date: m.date,
     dayNum: m.dayNum,
