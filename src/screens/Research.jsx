@@ -7,6 +7,7 @@ import { getCachedOrFreshResearch } from '../services/ai';
 import { addCustomProtocol } from '../utils/storage';
 import ResearchCard from '../components/cards/ResearchCard';
 import AddToProtocolSheet from '../components/sheets/AddToProtocolSheet';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 function PulsingDot() {
@@ -77,6 +78,7 @@ export default function Research() {
     : null;
 
   return (
+    <SwipeTabWrapper currentTab="Research">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -141,6 +143,7 @@ export default function Research() {
         ))
       )}
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -150,7 +153,7 @@ const s = StyleSheet.create({
   header: { marginBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
-  title: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 40, marginTop: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   refreshBtn: { backgroundColor: '#1C1C1E', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, marginTop: 12 },
   refreshBtnText: { fontSize: 13, fontWeight: '600', color: '#3B82F6' },
   fetchedLabel: { fontSize: 11, color: '#3A3A3C', marginTop: 6 },

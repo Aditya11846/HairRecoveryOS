@@ -2,14 +2,61 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTodayKey, getStreakCount, getRecentCheckins, loadCheckin, daysToCheckpoint, get, set } from '../utils/storage';
 import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
 import SectionLabel from '../components/common/SectionLabel';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
+
+function MiniLogo() {
+  const bars = [
+    { h: 8, color: '#1a4d3a' },
+    { h: 12, color: '#26a641' },
+    { h: 16, color: '#39d353' },
+    { h: 20, color: '#56e878' },
+  ];
+  return (
+    <Svg width={28} height={20} viewBox="0 0 28 20">
+      {bars.map((bar, i) => (
+        <Rect
+          key={i}
+          x={i * 7}
+          y={20 - bar.h}
+          width={5}
+          height={bar.h}
+          rx={2.5}
+          fill={bar.color}
+        />
+      ))}
+    </Svg>
+  );
+}
+const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡' };
+
+function EvidenceBar({ level, label }) {
+  return (
+    <View style={s.evidenceContainer}>
+      <Text style={s.evidenceLabel}>EVIDENCE</Text>
+      <View style={s.evidenceBarRow}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <View
+            key={i}
+            style={[s.evidenceSegment, {
+              backgroundColor: i <= level ? C.green : '#2C2C2E',
+              opacity: i <= level ? (0.4 + (i / level) * 0.6) : 1,
+            }]}
+          />
+        ))}
+      </View>
+      <Text style={s.evidenceText}>{label}</Text>
+    </View>
+  );
+}
 
 function StatCard({ label, value, unit, valueColor = C.text, sub }) {
   return (
@@ -26,7 +73,7 @@ function StatCard({ label, value, unit, valueColor = C.text, sub }) {
 function InsightCard({ insight }) {
   const color = PRIORITY_COLORS[insight.priority] || C.accent;
   return (
-    <View style={[s.insightCard, { borderLeftColor: color }]}>
+    <View style={[s.insightCard, { borderLeftColor: color, shadowColor: color }]}>
       <View style={s.insightHeader}>
         <View style={[s.insightDot, { backgroundColor: color }]} />
         <Text style={s.insightTitle}>{insight.title}</Text>
@@ -90,7 +137,7 @@ export default function Overview() {
       setRecent(rec14.slice(0, 7));
       setProtocolDone(pd);
       loadInsights(rec14, str);
-    });
+    }).catch(() => {});
   }, []);
 
   const loadInsights = async (recent14, str) => {
@@ -138,6 +185,7 @@ export default function Overview() {
   })() : null;
 
   return (
+    <SwipeTabWrapper currentTab="Overview">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -145,6 +193,11 @@ export default function Overview() {
     >
       <View style={s.header}>
         <Text style={s.dateLabel}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+        <View style={s.logoRow}>
+          <MiniLogo />
+          <Text style={s.logoLabel}>HairOS</Text>
+          <View style={s.versionPill}><Text style={s.versionText}>v1.0</Text></View>
+        </View>
         <Text style={s.title}>Overview</Text>
       </View>
 
@@ -228,7 +281,9 @@ export default function Overview() {
                   activeOpacity={0.7}
                 >
                   <View style={s.accordionLeft}>
-                    <View style={[s.statusDot, { backgroundColor: C.green }]} />
+                    <View style={s.protocolIconBubble}>
+                      <Text style={s.protocolIconText}>{PROTOCOL_ICONS[item.id] || '●'}</Text>
+                    </View>
                     <View>
                       <Text style={s.accordionTitle}>{item.name}</Text>
                       <Text style={s.accordionDose}>{item.dose}</Text>
@@ -239,16 +294,25 @@ export default function Overview() {
                     <Text style={[s.chevron, isOpen && s.chevronOpen]}>›</Text>
                   </View>
                 </TouchableOpacity>
-                {isOpen && (
-                  <View style={s.accordionBody}>
-                    {[['Timing', item.timing], ['Evidence', item.evidence], ['Notes', item.notes]].map(([k, v]) => (
-                      <View key={k} style={s.detailRow}>
-                        <Text style={s.detailKey}>{k}</Text>
-                        <Text style={s.detailVal}>{v}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                {isOpen && (() => {
+                  const evidenceLevel = {
+                    'Very Strong — superior to finasteride in RCTs': 5,
+                    'Strong — multiple RCTs': 4,
+                    'Strong — FDA approved 30+ years': 4,
+                    'Moderate — Hairmax RCTs': 3,
+                  }[item.evidence] || 3;
+                  return (
+                    <View style={s.accordionBody}>
+                      {[['Timing', item.timing], ['Evidence', item.evidence], ['Notes', item.notes]].map(([k, v]) => (
+                        <View key={k} style={s.detailRow}>
+                          <Text style={s.detailKey}>{k}</Text>
+                          <Text style={s.detailVal}>{v}</Text>
+                        </View>
+                      ))}
+                      <EvidenceBar level={evidenceLevel} label={item.evidence} />
+                    </View>
+                  );
+                })()}
               </View>
             );
           })}
@@ -261,7 +325,9 @@ export default function Overview() {
           </Text>
         </View>
       </View>
+
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -270,12 +336,41 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { marginBottom: 24 },
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
-  title: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 40, marginTop: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, marginBottom: 10, paddingHorizontal: 4 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  logoLabel: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.2 },
+  versionPill: { backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  versionText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
+  card: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  statCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, width: '47.5%', minHeight: 100 },
+  statCard: {
+    backgroundColor: 'rgba(28,28,30,0.9)',
+    borderRadius: 16,
+    padding: 14,
+    width: '47.5%',
+    minHeight: 100,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.13)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
   statLabel: { fontSize: 10, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 6 },
   statValue: { fontSize: 32, fontWeight: '700', color: '#FFFFFF', lineHeight: 36 },
   statUnit: { fontSize: 16, fontWeight: '600', color: '#8E8E93' },
@@ -285,18 +380,35 @@ const s = StyleSheet.create({
   avgValue: { fontSize: 22, fontWeight: '700' },
   avgLabel: { fontSize: 10, fontWeight: '500', color: '#8E8E93', marginTop: 2 },
   avgDivider: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: '#2C2C2E' },
-  insightsLoading: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  insightsLoading: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   insightsLoadingText: { fontSize: 14, color: '#8E8E93' },
-  insightPlaceholder: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  insightPlaceholder: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   insightPlaceholderText: { fontSize: 14, color: '#8E8E93', lineHeight: 20 },
-  insightCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, borderLeftWidth: 3, marginBottom: 8 },
+  insightCard: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    borderLeftWidth: 3, marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   insightDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   insightTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', flex: 1 },
   insightBody: { fontSize: 13, color: '#8E8E93', lineHeight: 19 },
   updatedLabel: { fontSize: 11, color: '#3A3A3C', marginTop: 4, paddingHorizontal: 4 },
   cardList: {},
-  accordionCard: { backgroundColor: '#1C1C1E', borderRadius: 12, overflow: 'hidden' },
+  accordionCard: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   cardMarginTop: { marginTop: 8 },
   accordionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, minHeight: 56 },
   accordionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
@@ -312,7 +424,14 @@ const s = StyleSheet.create({
   detailRow: { flexDirection: 'row', gap: 12 },
   detailKey: { fontSize: 12, color: '#8E8E93', width: 64, flexShrink: 0 },
   detailVal: { fontSize: 14, color: '#FFFFFF', flex: 1, lineHeight: 20 },
-  bloodworkCard: { marginTop: 8, backgroundColor: '#1C1E2A', borderRadius: 12, padding: 16 },
+  bloodworkCard: { marginTop: 8, backgroundColor: '#1C1E2A', borderRadius: 16, padding: 16 },
   bloodworkTitle: { fontSize: 10, fontWeight: '700', color: '#3B82F6', letterSpacing: 0.8, marginBottom: 6 },
   bloodworkText: { fontSize: 12, color: '#8E8E93', lineHeight: 18 },
+  protocolIconBubble: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#2C2C2E', alignItems: 'center', justifyContent: 'center' },
+  protocolIconText: { fontSize: 18 },
+  evidenceContainer: { marginTop: 8 },
+  evidenceLabel: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 5 },
+  evidenceBarRow: { flexDirection: 'row', gap: 3, marginBottom: 4 },
+  evidenceSegment: { flex: 1, height: 4, borderRadius: 2 },
+  evidenceText: { fontSize: 11, color: '#8E8E93', fontStyle: 'italic' },
 });

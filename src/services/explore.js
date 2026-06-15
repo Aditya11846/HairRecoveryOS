@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { get } from '../utils/storage';
+import { Buffer } from 'buffer';
+import { get, getRedditCredentials } from '../utils/storage';
 import { MODEL, EXPLORE_CACHE_TTL_MS } from '../constants/config';
 import { logger } from '../utils/logger';
 
@@ -63,58 +64,194 @@ async function fetchClinicalTrials() {
   }
 }
 
-async function fetchReddit() {
+async function getRedditToken(clientId, clientSecret) {
+  const TOKEN_KEY = 'hair_os_reddit_token';
   try {
-    const queries = ['oral+minoxidil+results', 'dutasteride+regrowth', 'crown+aga+progress'];
-    const seen = new Set();
-    const results = [];
-
-    for (const q of queries) {
-      try {
-        const res = await fetch(
-          `https://www.reddit.com/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
-          { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
-        );
-        const data = await res.json();
-        const posts = data?.data?.children || [];
-
-        for (const post of posts) {
-          const d = post.data;
-          const url = `https://reddit.com${d.permalink}`;
-          if (!seen.has(url) && d.title) {
-            seen.add(url);
-            results.push({
-              title: d.title,
-              score: d.score || 0,
-              url,
-              excerpt: (d.selftext || '').slice(0, 200),
-            });
-          }
-        }
-      } catch {}
+    const cached = await AsyncStorage.getItem(TOKEN_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Date.now() < parsed.expiresAt) return parsed.access_token;
     }
 
-    return results.sort((a, b) => b.score - a.score).slice(0, 10);
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'HairRecoveryOS/1.0 by Aditya11846',
+      },
+      body: 'grant_type=client_credentials',
+    });
+
+    const data = await res.json();
+    if (!data.access_token) return null;
+
+    await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify({
+      access_token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    }));
+
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchReddit() {
+  const creds = await getRedditCredentials();
+  const queries = [
+    'oral+minoxidil+results',
+    'dutasteride+regrowth',
+    'crown+aga+progress',
+    'minoxidil+shedding+phase',
+    'oral+minoxidil+side+effects',
+    'norwood+3+recovery',
+  ];
+
+  const seen = new Set();
+  const results = [];
+
+  let token = null;
+  if (creds?.clientId && creds?.clientSecret) {
+    token = await getRedditToken(creds.clientId, creds.clientSecret);
+  }
+
+  const baseUrl = token ? 'https://oauth.reddit.com' : 'https://www.reddit.com';
+  const headers = {
+    'User-Agent': 'HairRecoveryOS/1.0 by Aditya11846',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+
+  for (const q of queries) {
+    try {
+      const res = await fetch(
+        `${baseUrl}/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
+        { headers },
+      );
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+
+      for (const post of posts) {
+        const d = post.data;
+        const url = `https://reddit.com${d.permalink}`;
+        if (!seen.has(url) && d.title) {
+          seen.add(url);
+          results.push({
+            title: d.title,
+            score: d.score || 0,
+            url,
+            excerpt: (d.selftext || '').slice(0, 300),
+          });
+        }
+      }
+    } catch {}
+  }
+
+  return results.sort((a, b) => b.score - a.score).slice(0, 10);
+}
+
+async function fetchDermNetNZ() {
+  try {
+    const res = await fetch(
+      'https://dermnetnz.org/search?q=androgenetic+alopecia',
+      { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
+    );
+    const html = await res.text();
+
+    const keywords = ['alopecia', 'minoxidil', 'hair loss', 'dutasteride'];
+    const linkRegex = /href="(\/topics\/[^"]+)"[^>]*>([^<]+)</g;
+    const results = [];
+    const seen = new Set();
+    let match;
+
+    while ((match = linkRegex.exec(html)) !== null) {
+      const path = match[1];
+      const title = match[2].trim();
+      if (!title || seen.has(path)) continue;
+      const textLower = (path + ' ' + title).toLowerCase();
+      if (keywords.some(kw => textLower.includes(kw))) {
+        seen.add(path);
+        results.push({
+          title,
+          url: `https://dermnetnz.org${path}`,
+          excerpt: '',
+          source: 'DermNet',
+        });
+        if (results.length >= 5) break;
+      }
+    }
+
+    return results;
   } catch (e) {
-    logger.error('Explore', 'Reddit error', e.message);
+    logger.error('Explore', 'DermNet error', e.message);
     return [];
   }
 }
 
-async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData) {
-  const userMsg = `Aditya's profile: 22yo male, crown AGA Norwood ~3, on oral minoxidil 2.5mg daily + Novegrow topical 10% solution nightly + dutasteride 0.5mg Mon/Thu. Smokes ~5/day. No bloodwork yet. Phase 1 baseline Jun 2026.
+function fetchYouTubeTranscripts() {
+  const YOUTUBE_STATIC = [
+    {
+      title: 'Oral Minoxidil for Hair Loss — Dr. Dray',
+      url: 'https://www.youtube.com/watch?v=oBMQxbGIssc',
+      excerpt: 'Dermatologist explains oral minoxidil mechanism, dosing, side effects vs topical',
+      source: 'YouTube',
+    },
+    {
+      title: 'Dutasteride vs Finasteride — Which is More Effective?',
+      url: 'https://www.youtube.com/watch?v=3mA3JeKrELs',
+      excerpt: 'Head-to-head comparison of DHT inhibitors for AGA, RCT evidence reviewed',
+      source: 'YouTube',
+    },
+    {
+      title: 'Why Consistency Matters More Than Protocol Strength',
+      url: 'https://www.youtube.com/watch?v=Qk7FjKxBkEI',
+      excerpt: 'Hair cycling, why stopping and starting causes telogen effluvium resets',
+      source: 'YouTube',
+    },
+  ];
+  return YOUTUBE_STATIC;
+}
 
-PubMed papers (${pubmedData.length}):
-${JSON.stringify(pubmedData.map(p => ({ title: p.title, journal: p.journal, pubdate: p.pubdate, url: p.url })))}
+function scoreItem(item, type) {
+  let score = 0;
+  const text = (item.title + ' ' + (item.excerpt || '') + ' ' + (item.summary || '')).toLowerCase();
 
-Recruiting clinical trials (${trialsData.length}):
-${JSON.stringify(trialsData.map(t => ({ title: t.title, summary: t.summary, url: t.url })))}
+  const highValue = ['oral minoxidil', 'dutasteride', 'crown', 'vertex', 'norwood', 'aga', 'androgenetic'];
+  const medValue = ['minoxidil', 'finasteride', 'dht', 'hair loss', 'regrowth', 'alopecia', 'follicle'];
+  const negValue = ['female', 'women', 'cicatricial', 'alopecia areata', 'traction'];
 
-Reddit r/tressless posts (${redditData.length}):
-${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, url: r.url })))}
+  highValue.forEach(kw => { if (text.includes(kw)) score += 3; });
+  medValue.forEach(kw => { if (text.includes(kw)) score += 1; });
+  negValue.forEach(kw => { if (text.includes(kw)) score -= 5; });
 
-Analyze this raw data and return the 5 MOST RELEVANT items as a JSON array. Return ONLY the JSON, no markdown, no code fences:
-[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit","summary":"2 sentences based on the actual data","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence specific to this profile","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"..."}]`;
+  if (type === 'pubmed' && item.pubdate) {
+    const year = parseInt(item.pubdate.slice(0, 4));
+    if (year >= 2023) score += 3;
+    else if (year >= 2021) score += 1;
+  }
+
+  if (type === 'reddit') score += Math.min(item.score / 500, 3);
+
+  return score;
+}
+
+async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData, youtubeData, dermnetData) {
+  const userMsg = `Aditya's profile: 22yo male, crown AGA Norwood ~3 vertex. Protocol: oral minoxidil 2.5mg daily, Novegrow 10% solution nightly, dutasteride 0.5mg Mon+Thu. Smokes ~5 cigarettes/day. No bloodwork done. Phase 1 baseline Jun 2026. Target: 100% crown recovery by Sep 2026.
+
+Key questions he wants answered:
+- Is shedding in shower a reliable indicator of loss progression?
+- Should isotretinoin (Tretiva) be applied before minoxidil for better absorption?
+- What's the real impact of smoking on minoxidil efficacy?
+
+PubMed papers (${pubmedData.length}): ${JSON.stringify(pubmedData.map(p => ({ title: p.title, journal: p.journal, pubdate: p.pubdate, url: p.url })))}
+Recruiting trials (${trialsData.length}): ${JSON.stringify(trialsData.map(t => ({ title: t.title, summary: t.summary, url: t.url })))}
+Reddit r/tressless (${redditData.length}): ${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, url: r.url, excerpt: r.excerpt })))}
+YouTube references (${youtubeData.length}): ${JSON.stringify(youtubeData)}
+DermNet articles (${dermnetData.length}): ${JSON.stringify(dermnetData.map(d => ({ title: d.title, url: d.url })))}
+
+Analyze all data. Return the 8 MOST RELEVANT items as a JSON array. Return ONLY valid JSON, no markdown, no fences:
+[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit"|"YouTube"|"DermNet","summary":"2 sentence plain-English explanation of what this actually says","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence specific to Aditya's exact protocol","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"...","readTime":"X min read"}]`;
 
   try {
     const res = await fetch(API_URL, {
@@ -174,21 +311,38 @@ export async function getCachedOrFreshExplore(forceRefresh = false) {
   }
 
   logger.info('Explore', 'fetching fresh data from all sources');
-  const [pubmedData, trialsData, redditData] = await Promise.all([
+  const [pubmedData, trialsData, redditData, youtubeData, dermnetData] = await Promise.all([
     fetchPubMed(),
     fetchClinicalTrials(),
     fetchReddit(),
+    fetchYouTubeTranscripts(),
+    fetchDermNetNZ(),
   ]);
 
-  logger.info('Explore', `fetched: pubmed=${pubmedData.length}, trials=${trialsData.length}, reddit=${redditData.length}`);
+  logger.info('Explore', `fetched: pubmed=${pubmedData.length}, trials=${trialsData.length}, reddit=${redditData.length}, youtube=${youtubeData.length}, dermnet=${dermnetData.length}`);
 
-  const sources = { pubmed: pubmedData.length, trials: trialsData.length, reddit: redditData.length };
+  // Pre-filter with relevance scoring before sending to Claude
+  const scoredPubmed = pubmedData
+    .map(p => ({ ...p, _score: scoreItem(p, 'pubmed') }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 6);
+  const scoredReddit = redditData
+    .map(r => ({ ...r, _score: scoreItem(r, 'reddit') }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 6);
+
+  const sources = {
+    pubmed: pubmedData.length,
+    trials: trialsData.length,
+    reddit: redditData.length,
+    youtube: youtubeData.length,
+  };
 
   if (!pubmedData.length && !trialsData.length && !redditData.length) {
     return { apiError: true, errorDetail: 'All data sources failed. Check internet connection.' };
   }
 
-  const { result: items, error } = await analyzeWithClaude(apiKey, pubmedData, trialsData, redditData);
+  const { result: items, error } = await analyzeWithClaude(apiKey, scoredPubmed, trialsData, scoredReddit, youtubeData, dermnetData);
   if (!items) return { apiError: true, errorDetail: error };
 
   const fetchedAt = new Date().toISOString();

@@ -9,9 +9,9 @@ export default function SectionLabel({ label }) {
 const s = StyleSheet.create({
   label: {
     fontSize: 11,
-    fontWeight: '600',
-    color: C.sub,
-    letterSpacing: 0.8,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.2,
     marginBottom: 10,
     paddingHorizontal: 4,
   },

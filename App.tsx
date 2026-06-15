@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
-import React, { useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StatusBar, StyleSheet } from 'react-native';
+import SplashScreen from './src/screens/SplashScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -72,6 +73,8 @@ function ClaudeIcon({ color }: { color: string }) {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   useEffect(() => {
     syncPendingCheckins();
   }, []);
@@ -79,23 +82,32 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
+      {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
       <NavigationContainer>
         <Tab.Navigator
           initialRouteName="Overview"
           screenOptions={{
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: '#000000',
-              borderTopColor: '#1C1C1E',
-              borderTopWidth: 1,
+              backgroundColor: 'rgba(0,0,0,0.92)',
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: 'rgba(255,255,255,0.10)',
+              height: 56,
+              paddingBottom: 8,
+              paddingTop: 6,
             },
             tabBarActiveTintColor: '#3B82F6',
             tabBarInactiveTintColor: '#8E8E93',
             tabBarLabelStyle: {
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: '600',
-              letterSpacing: -0.2,
+              letterSpacing: -0.3,
+              marginBottom: 2,
             },
+            tabBarItemStyle: {
+              paddingHorizontal: 2,
+            },
+            lazy: false,
           }}
         >
           <Tab.Screen

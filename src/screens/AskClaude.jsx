@@ -5,7 +5,8 @@ import {
   Pressable, ScrollView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { get, set, getRecentCheckins, getStreakCount, getTodayKey, loadCheckin } from '../utils/storage';
+import { get, set, getRecentCheckins, getStreakCount, getTodayKey, loadCheckin, getRedditCredentials, saveRedditCredentials } from '../utils/storage';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 const MODEL = 'claude-sonnet-4-6';
@@ -90,12 +91,17 @@ export default function AskClaude() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [invalidKey, setInvalidKey] = useState(false);
+  const [redditCredsSet, setRedditCredsSet] = useState(false);
+  const [redditModalVisible, setRedditModalVisible] = useState(false);
+  const [redditClientId, setRedditClientId] = useState('');
+  const [redditClientSecret, setRedditClientSecret] = useState('');
   const listRef = useRef(null);
 
   useEffect(() => {
-    Promise.all([get('api_key', ''), get('chat_history', [])]).then(([k, h]) => {
+    Promise.all([get('api_key', ''), get('chat_history', []), getRedditCredentials()]).then(([k, h, redditCreds]) => {
       setApiKey(k || '');
       setMessages(h || []);
+      setRedditCredsSet(!!redditCreds?.clientId);
     });
   }, []);
 
@@ -180,11 +186,60 @@ export default function AskClaude() {
   const isEmpty = messages.length === 0;
 
   return (
+    <SwipeTabWrapper currentTab="Claude">
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: C.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
+      {/* Reddit credentials modal */}
+      <Modal visible={redditModalVisible} transparent animationType="slide" onRequestClose={() => setRedditModalVisible(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setRedditModalVisible(false)}>
+          <Pressable style={[s.modalSheet, { paddingBottom: insets.bottom + 24 }]} onPress={e => e.stopPropagation()}>
+            <View style={s.modalHandle} />
+            <Text style={s.modalTitle}>Reddit API Setup</Text>
+            <Text style={s.modalSub}>
+              Go to reddit.com/prefs/apps → Create App → "script" type.{'\n'}
+              Name: HairRecoveryOS · Redirect: http://localhost:8080
+            </Text>
+            <Text style={s.modalLabel}>Client ID</Text>
+            <TextInput
+              style={s.modalInput}
+              value={redditClientId}
+              onChangeText={setRedditClientId}
+              placeholder="Under app name (14 char string)"
+              placeholderTextColor={C.sub}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Text style={s.modalLabel}>Client Secret</Text>
+            <TextInput
+              style={s.modalInput}
+              value={redditClientSecret}
+              onChangeText={setRedditClientSecret}
+              placeholder="Secret key"
+              placeholderTextColor={C.sub}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <TouchableOpacity
+              onPress={async () => {
+                if (redditClientId && redditClientSecret) {
+                  await saveRedditCredentials(redditClientId, redditClientSecret);
+                  setRedditCredsSet(true);
+                  setRedditModalVisible(false);
+                }
+              }}
+              style={s.saveKeyBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={s.saveKeyBtnText}>Save & Connect</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* API Key modal */}
       <Modal visible={showKeyModal} transparent animationType="slide" onRequestClose={() => setShowKeyModal(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowKeyModal(false)}>
@@ -244,6 +299,12 @@ export default function AskClaude() {
                 {apiKey ? `${MODEL} · context loaded` : 'Tap to set API key'}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setRedditModalVisible(true)} style={s.apiKeyRow} activeOpacity={0.7}>
+              <Text style={s.apiKeyLabel}>Reddit API</Text>
+              <Text style={[s.apiKeyStatus, { color: redditCredsSet ? C.green : C.sub }]}>
+                {redditCredsSet ? 'Connected ✓' : 'Not set up'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </TouchableWithoutFeedback>
 
@@ -280,6 +341,8 @@ export default function AskClaude() {
             style={s.msgFlatList}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="interactive"
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
             ListFooterComponent={
               <>
                 {loading && (
@@ -336,6 +399,7 @@ export default function AskClaude() {
         </View>
       </View>
     </KeyboardAvoidingView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -363,8 +427,29 @@ const s = StyleSheet.create({
   bubbleRight: { alignItems: 'flex-end' },
   bubbleLeft: { alignItems: 'flex-start' },
   bubble: { maxWidth: '86%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: '#3B82F6', borderBottomRightRadius: 4 },
-  bubbleAssistant: { backgroundColor: '#1C1C1E', borderBottomLeftRadius: 4 },
+  bubbleUser: {
+    backgroundColor: C.accent,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxWidth: '80%',
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  bubbleAssistant: {
+    backgroundColor: 'rgba(28,28,30,0.95)',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxWidth: '80%',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.12)',
+  },
   bubbleText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
   invalidKeyBanner: { backgroundColor: '#2A1A00', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginTop: 4, borderWidth: 1, borderColor: '#F97316' },
   invalidKeyBannerText: { fontSize: 13, color: '#F97316', fontWeight: '600', textAlign: 'center' },
@@ -387,4 +472,9 @@ const s = StyleSheet.create({
   modalRow: { flexDirection: 'row', gap: 8 },
   modalSecBtn: { backgroundColor: '#2C2C2E', height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modalSecBtnText: { fontSize: 14, fontWeight: '600' },
+  modalLabel: { fontSize: 12, fontWeight: '600', color: '#8E8E93', marginBottom: 6, marginTop: 12 },
+  modalInput: { backgroundColor: '#2C2C2E', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 14, color: '#FFFFFF', marginBottom: 4 },
+  apiKeyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, marginTop: 2 },
+  apiKeyLabel: { fontSize: 12, fontWeight: '600', color: '#8E8E93' },
+  apiKeyStatus: { fontSize: 12, fontWeight: '600' },
 });

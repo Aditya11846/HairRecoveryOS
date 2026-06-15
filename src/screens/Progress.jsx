@@ -5,12 +5,73 @@ import {
 } from 'react-native';
 import Svg, { Path, Line as SvgLine, Text as SvgText, Circle, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getLast30Days, getLastNDays, getStreakCount, get, set } from '../utils/storage';
+import { getLast30Days, getLastNDays, getStreakCount, loadCheckin, getTodayKey, get, set } from '../utils/storage';
+import { useNavigation } from '@react-navigation/native';
 import { TIMELINE, PHASE1_OBJECTIVES } from '../constants/timeline';
 import SectionLabel from '../components/common/SectionLabel';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function TodayStatusCard({ todayCheckin, onLogNow }) {
+  const today = new Date();
+  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const hasBothMeds = todayCheckin?.oralMinoxidil === true && todayCheckin?.topicalMinoxidil === true;
+  const hasPartial = todayCheckin && !hasBothMeds;
+
+  const status = hasBothMeds ? 'done' : hasPartial ? 'partial' : 'missed';
+
+  const config = {
+    done: {
+      color: C.green,
+      bg: 'rgba(48,209,88,0.1)',
+      border: 'rgba(48,209,88,0.25)',
+      icon: '✓',
+      title: 'Protocol complete',
+      sub: `${dayName} · ${dateStr}`,
+    },
+    partial: {
+      color: C.orange,
+      bg: 'rgba(255,159,10,0.1)',
+      border: 'rgba(255,159,10,0.25)',
+      icon: '◑',
+      title: 'Partial — log the rest',
+      sub: `${dayName} · ${dateStr} · Missing some medications`,
+    },
+    missed: {
+      color: C.red,
+      bg: 'rgba(255,69,58,0.1)',
+      border: 'rgba(255,69,58,0.25)',
+      icon: '○',
+      title: 'Today not logged yet',
+      sub: `${dayName} · ${dateStr} · Don't break the streak`,
+    },
+  }[status];
+
+  return (
+    <TouchableOpacity
+      onPress={status !== 'done' ? onLogNow : undefined}
+      activeOpacity={status !== 'done' ? 0.75 : 1}
+      style={[s.todayCard, { backgroundColor: config.bg, borderColor: config.border }]}
+    >
+      <View style={[s.todayIconCircle, { backgroundColor: config.color + '22' }]}>
+        <Text style={[s.todayIcon, { color: config.color }]}>{config.icon}</Text>
+      </View>
+      <View style={s.todayTextBlock}>
+        <Text style={[s.todayTitle, { color: config.color }]}>{config.title}</Text>
+        <Text style={s.todaySub}>{config.sub}</Text>
+      </View>
+      {status !== 'done' && (
+        <View style={[s.todayAction, { backgroundColor: config.color }]}>
+          <Text style={s.todayActionText}>Log →</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
 
 function getWeeklyData(days) {
   const today = new Date();
@@ -247,26 +308,29 @@ function DayModal({ day, visible, onClose }) {
 
 export default function Progress() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const [days, setDays] = useState([]);
   const [heatmapDays, setHeatmapDays] = useState([]);
   const [streak, setStreak] = useState(0);
   const [weeks, setWeeks] = useState([]);
   const [phase1, setPhase1] = useState({});
+  const [todayCheckin, setTodayCheckin] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
-    Promise.all([getLast30Days(), getLastNDays(84), getStreakCount(), get('phase1', {})]).then(([d, hd, str, ph]) => {
+    Promise.all([getLast30Days(), getLastNDays(84), getStreakCount(), get('phase1', {}), loadCheckin(getTodayKey())]).then(([d, hd, str, ph, todayCI]) => {
       setDays(d);
       setHeatmapDays(hd);
       setStreak(str);
       setWeeks(getWeeklyData(d));
+      setTodayCheckin(todayCI);
       const derivedPh = str >= 30 ? { ...ph, streak30: true } : ph;
       if (str >= 30 && !ph.streak30) set('phase1', derivedPh);
       setPhase1(derivedPh);
-    });
+    }).catch(() => {});
   }, []);
 
   const togglePhase1 = async (id) => {
@@ -285,6 +349,7 @@ export default function Progress() {
   const textColors = { past: C.sub, milestone: C.accent, current: C.green, future: C.dim, goal: C.orange };
 
   return (
+    <SwipeTabWrapper currentTab="Progress">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -294,6 +359,8 @@ export default function Progress() {
         <Text style={s.dateLabel}>Last 30 days</Text>
         <Text style={s.title}>Progress</Text>
       </View>
+
+      <TodayStatusCard todayCheckin={todayCheckin} onLogNow={() => navigation.navigate('Check-in')} />
 
       {/* Streak hero */}
       <View style={[s.card, s.streakCard]}>
@@ -368,8 +435,10 @@ export default function Progress() {
                               {
                                 width: cellSize,
                                 height: cellSize,
-                                borderRadius: Math.max(3, Math.floor(cellSize * 0.18)),
+                                borderRadius: Math.max(6, Math.floor(cellSize * 0.18)),
                                 backgroundColor: getCellColor(day),
+                                borderWidth: StyleSheet.hairlineWidth,
+                                borderColor: 'rgba(255,255,255,0.04)',
                               },
                               isToday && { borderWidth: 2, borderColor: '#3B82F6' },
                             ]}
@@ -448,6 +517,7 @@ export default function Progress() {
         </View>
       </View>
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -456,10 +526,21 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { marginBottom: 24 },
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
-  title: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 40, marginTop: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, marginBottom: 10, paddingHorizontal: 4 },
+  card: {
+    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   streakCard: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 },
   streakNum: { fontSize: 56, fontWeight: '900', lineHeight: 60, marginVertical: 4 },
   streakSub: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
@@ -489,6 +570,14 @@ const s = StyleSheet.create({
   timelineContent: { flex: 1, paddingLeft: 12 },
   timelineDate: { fontSize: 10, fontWeight: '600', color: '#3A3A3C' },
   timelineLabel: { fontSize: 12, fontWeight: '500', marginTop: 2, lineHeight: 16 },
+  todayCard: { borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1 },
+  todayIconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  todayIcon: { fontSize: 20, fontWeight: '700' },
+  todayTextBlock: { flex: 1 },
+  todayTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  todaySub: { fontSize: 12, color: C.sub, lineHeight: 16 },
+  todayAction: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, flexShrink: 0 },
+  todayActionText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   phase1Header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
   phase1Count: { fontSize: 12, fontWeight: '600', color: '#3B82F6', marginBottom: 10 },
   phase1Row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, minHeight: 56, gap: 12 },
