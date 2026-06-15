@@ -96,7 +96,6 @@ async function fetchReddit() {
       for (const post of posts) {
         const d = post?.data;
         if (!d?.title || seen.has(d.id)) continue;
-        if (d.score < 10 && sort !== 'new') continue;
         seen.add(d.id);
         results.push({
           id: d.id,
@@ -113,96 +112,45 @@ async function fetchReddit() {
     }
   }
 
-  // Fallback: fetch hot posts directly
-  try {
-    const hotRes = await fetch('https://www.reddit.com/r/tressless/hot.json?limit=20&raw_json=1', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
-    });
-    if (hotRes.ok) {
-      const hotData = await hotRes.json();
-      for (const post of hotData?.data?.children || []) {
-        const d = post?.data;
-        if (!d?.title || seen.has(d.id)) continue;
-        seen.add(d.id);
-        results.push({
-          id: d.id,
-          title: d.title,
-          score: d.score || 0,
-          url: `https://www.reddit.com${d.permalink}`,
-          excerpt: (d.selftext || '').slice(0, 400),
-          numComments: d.num_comments || 0,
-        });
-      }
+  const REDDIT_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+  const addPosts = (children) => {
+    for (const post of children || []) {
+      const d = post?.data;
+      if (!d?.title || seen.has(d.id)) continue;
+      seen.add(d.id);
+      results.push({
+        id: d.id,
+        title: d.title,
+        score: d.score || 0,
+        url: `https://www.reddit.com${d.permalink}`,
+        excerpt: (d.selftext || '').slice(0, 400),
+        numComments: d.num_comments || 0,
+      });
     }
-  } catch (e) {
-    console.log('[Reddit] hot fallback error:', e.message);
+  };
+
+  // Hot fallback
+  try {
+    const hotRes = await fetch('https://www.reddit.com/r/tressless/hot.json?limit=25&raw_json=1', {
+      headers: { 'User-Agent': REDDIT_UA },
+    });
+    if (hotRes.ok) addPosts((await hotRes.json())?.data?.children);
+  } catch (e) { console.log('[Reddit] hot fallback error:', e.message); }
+
+  // Top all-time fallback
+  if (results.length < 10) {
+    try {
+      const topRes = await fetch('https://www.reddit.com/r/tressless/top.json?t=year&limit=25&raw_json=1', {
+        headers: { 'User-Agent': REDDIT_UA },
+      });
+      if (topRes.ok) addPosts((await topRes.json())?.data?.children);
+    } catch (e) { console.log('[Reddit] top fallback error:', e.message); }
   }
 
   console.log('[Reddit] total unique posts:', results.length);
   return results.sort((a, b) => b.score - a.score).slice(0, 15);
 }
 
-async function fetchDermNetNZ() {
-  try {
-    const res = await fetch(
-      'https://dermnetnz.org/search?q=androgenetic+alopecia',
-      { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
-    );
-    const html = await res.text();
-
-    const keywords = ['alopecia', 'minoxidil', 'hair loss', 'dutasteride'];
-    const linkRegex = /href="(\/topics\/[^"]+)"[^>]*>([^<]+)</g;
-    const results = [];
-    const seen = new Set();
-    let match;
-
-    while ((match = linkRegex.exec(html)) !== null) {
-      const path = match[1];
-      const title = match[2].trim();
-      if (!title || seen.has(path)) continue;
-      const textLower = (path + ' ' + title).toLowerCase();
-      if (keywords.some(kw => textLower.includes(kw))) {
-        seen.add(path);
-        results.push({
-          title,
-          url: `https://dermnetnz.org${path}`,
-          excerpt: '',
-          source: 'DermNet',
-        });
-        if (results.length >= 5) break;
-      }
-    }
-
-    return results;
-  } catch (e) {
-    logger.error('Explore', 'DermNet error', e.message);
-    return [];
-  }
-}
-
-function fetchYouTubeTranscripts() {
-  const YOUTUBE_STATIC = [
-    {
-      title: 'Oral Minoxidil for Hair Loss — Dr. Dray',
-      url: 'https://www.youtube.com/watch?v=oBMQxbGIssc',
-      excerpt: 'Dermatologist explains oral minoxidil mechanism, dosing, side effects vs topical',
-      source: 'YouTube',
-    },
-    {
-      title: 'Dutasteride vs Finasteride — Which is More Effective?',
-      url: 'https://www.youtube.com/watch?v=3mA3JeKrELs',
-      excerpt: 'Head-to-head comparison of DHT inhibitors for AGA, RCT evidence reviewed',
-      source: 'YouTube',
-    },
-    {
-      title: 'Why Consistency Matters More Than Protocol Strength',
-      url: 'https://www.youtube.com/watch?v=Qk7FjKxBkEI',
-      excerpt: 'Hair cycling, why stopping and starting causes telogen effluvium resets',
-      source: 'YouTube',
-    },
-  ];
-  return YOUTUBE_STATIC;
-}
 
 function scoreItem(item, type) {
   let score = 0;
@@ -227,7 +175,7 @@ function scoreItem(item, type) {
   return score;
 }
 
-async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData, youtubeData, dermnetData) {
+async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData) {
   const userMsg = `You are analyzing hair loss research for Aditya Singh, 22, Pune, India.
 His profile: Crown AGA Norwood ~3 vertex (hairline intact). Protocol: oral minoxidil 2.5mg daily + Novegrow topical 10% solution nightly + dutasteride 0.5mg Mon+Thu. Smokes ~5 cigarettes/day. No bloodwork done. Peak result Aug 2025: 90% crown regrowth. Phase 1 baseline Jun 2026. Target: 100% crown recovery Sep 2026.
 
@@ -301,15 +249,13 @@ export async function getCachedOrFreshExplore(forceRefresh = false) {
   }
 
   logger.info('Explore', 'fetching fresh data from all sources');
-  const [pubmedData, trialsData, redditData, youtubeData, dermnetData] = await Promise.all([
+  const [pubmedData, trialsData, redditData] = await Promise.all([
     fetchPubMed(),
     fetchClinicalTrials(),
     fetchReddit(),
-    fetchYouTubeTranscripts(),
-    fetchDermNetNZ(),
   ]);
 
-  logger.info('Explore', `fetched: pubmed=${pubmedData.length}, trials=${trialsData.length}, reddit=${redditData.length}, youtube=${youtubeData.length}, dermnet=${dermnetData.length}`);
+  logger.info('Explore', `fetched: pubmed=${pubmedData.length}, trials=${trialsData.length}, reddit=${redditData.length}`);
 
   // Pre-filter with relevance scoring before sending to Claude
   const scoredPubmed = pubmedData
@@ -319,20 +265,19 @@ export async function getCachedOrFreshExplore(forceRefresh = false) {
   const scoredReddit = redditData
     .map(r => ({ ...r, _score: scoreItem(r, 'reddit') }))
     .sort((a, b) => b._score - a._score)
-    .slice(0, 6);
+    .slice(0, 8);
 
   const sources = {
     pubmed: pubmedData.length,
     trials: trialsData.length,
     reddit: redditData.length,
-    youtube: youtubeData.length,
   };
 
   if (!pubmedData.length && !trialsData.length && !redditData.length) {
     return { apiError: true, errorDetail: 'All data sources failed. Check internet connection.' };
   }
 
-  const { result: items, error } = await analyzeWithClaude(apiKey, scoredPubmed, trialsData, scoredReddit, youtubeData, dermnetData);
+  const { result: items, error } = await analyzeWithClaude(apiKey, scoredPubmed, trialsData, scoredReddit);
   if (!items) return { apiError: true, errorDetail: error };
 
   const fetchedAt = new Date().toISOString();

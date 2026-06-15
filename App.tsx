@@ -166,7 +166,7 @@ function CustomTabBar({ state, navigation }: any) {
 }
 const tb = StyleSheet.create({
   wrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
-  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,8,0.93)' },
+  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000' },
   border: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.10)' },
   row: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 4 },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 48 },

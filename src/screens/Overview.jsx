@@ -8,7 +8,7 @@ import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
 import SectionLabel from '../components/common/SectionLabel';
 import { C } from '../theme';
-import Svg, { Rect as SvgRect, Path as SvgPath } from 'react-native-svg';
+import Svg, { Rect as SvgRect, Path as SvgPath, Ellipse as SvgEllipse, Circle as SvgCircle, Line as SvgLine, Text as SvgText, G } from 'react-native-svg';
 
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
 const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡️' };
@@ -125,6 +125,89 @@ const apg = StyleSheet.create({
   stepBody: { fontSize: 12, color: 'rgba(255,255,255,0.58)', lineHeight: 17 },
   noteBox: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, marginTop: 4 },
   noteText: { fontSize: 11, color: 'rgba(255,255,255,0.42)', lineHeight: 16, fontStyle: 'italic' },
+});
+
+function ScalpDiagram() {
+  const W = 220;
+  const H = 260;
+  return (
+    <View style={hd.wrap}>
+      <Text style={hd.heading}>WHERE TO APPLY</Text>
+      <View style={hd.svgWrap}>
+        <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          {/* Head outline */}
+          <SvgEllipse cx={110} cy={112} rx={80} ry={94} fill="#1A1A1C" stroke="#3A3A3C" strokeWidth={1.5} />
+          {/* Scalp top area */}
+          <SvgEllipse cx={110} cy={104} rx={63} ry={72} fill="rgba(59,130,246,0.07)" />
+
+          {/* Ear bumps */}
+          <SvgEllipse cx={33} cy={118} rx={9} ry={14} fill="#242426" stroke="#3A3A3C" strokeWidth={1} />
+          <SvgEllipse cx={187} cy={118} rx={9} ry={14} fill="#242426" stroke="#3A3A3C" strokeWidth={1} />
+
+          {/* Topical zone: crown + temples */}
+          <SvgEllipse cx={110} cy={100} rx={44} ry={50} fill="rgba(57,211,83,0.10)" />
+
+          {/* Temple zones */}
+          <SvgEllipse cx={72} cy={72} rx={20} ry={14} fill="rgba(57,211,83,0.13)" />
+          <SvgEllipse cx={148} cy={72} rx={20} ry={14} fill="rgba(57,211,83,0.13)" />
+
+          {/* Crown / LLLT focus zone */}
+          <SvgCircle cx={110} cy={104} r={26} fill="rgba(255,69,58,0.13)" />
+          <SvgCircle cx={110} cy={104} r={14} fill="rgba(255,69,58,0.18)" />
+
+          {/* Front hairline arc */}
+          <SvgPath d="M 67 58 Q 110 32 153 58" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
+
+          {/* Zone labels */}
+          <SvgText x={110} y={94} textAnchor="middle" fill="rgba(255,69,58,0.9)" fontSize={8} fontWeight="700">LLLT</SvgText>
+          <SvgText x={110} y={104} textAnchor="middle" fill="rgba(57,211,83,0.9)" fontSize={7} fontWeight="700">CROWN</SvgText>
+          <SvgText x={110} y={113} textAnchor="middle" fill="rgba(57,211,83,0.7)" fontSize={6}>TOPICAL</SvgText>
+
+          <SvgText x={72} y={71} textAnchor="middle" fill="rgba(57,211,83,0.8)" fontSize={6} fontWeight="700">L TEMPLE</SvgText>
+          <SvgText x={148} y={71} textAnchor="middle" fill="rgba(57,211,83,0.8)" fontSize={6} fontWeight="700">R TEMPLE</SvgText>
+
+          {/* Hairline label */}
+          <SvgText x={110} y={46} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize={6}>HAIRLINE</SvgText>
+
+          {/* Systemic label (whole scalp) */}
+          <SvgText x={110} y={155} textAnchor="middle" fill="rgba(59,130,246,0.5)" fontSize={6.5}>whole scalp (systemic)</SvgText>
+
+          {/* Legend row */}
+          <G transform="translate(12, 218)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(255,69,58,0.25)" stroke="#FF453A" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>LLLT — Crown focus</SvgText>
+          </G>
+          <G transform="translate(12, 234)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(57,211,83,0.25)" stroke="#39d353" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>Topical — Crown + temples</SvgText>
+          </G>
+          <G transform="translate(118, 218)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(59,130,246,0.25)" stroke="#3B82F6" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>Oral + Dut — Systemic</SvgText>
+          </G>
+        </Svg>
+      </View>
+      <View style={hd.tipsRow}>
+        <View style={hd.tip}>
+          <Text style={hd.tipIcon}>💧</Text>
+          <Text style={hd.tipText}>Part hair, apply dropper to scalp — NOT hair shaft</Text>
+        </View>
+        <View style={hd.tip}>
+          <Text style={hd.tipIcon}>🔴</Text>
+          <Text style={hd.tipText}>LLLT: 4 sec/section, grid pattern, crown inward</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+const hd = StyleSheet.create({
+  wrap: { backgroundColor: 'rgba(28,28,30,0.9)', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
+  heading: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 10 },
+  svgWrap: { alignItems: 'center', marginBottom: 12 },
+  tipsRow: { gap: 8 },
+  tip: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  tipIcon: { fontSize: 15, width: 22, textAlign: 'center' },
+  tipText: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 17 },
 });
 
 function StatCard({ label, value, unit, valueColor = C.text, sub }) {
@@ -333,6 +416,7 @@ export default function Overview() {
       {/* Protocol guide */}
       <View style={s.section}>
         <SectionLabel label="Protocol Guide" />
+        <ScalpDiagram />
         <View style={s.cardList}>
           {PROTOCOL_DETAILS.map((item, idx) => {
             const isOpen = openProtocol === item.id;

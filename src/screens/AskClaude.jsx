@@ -181,7 +181,7 @@ export default function AskClaude() {
 
   return (
     <KeyboardAvoidingView
-      style={[s.root, { backgroundColor: C.bg }]}
+      style={[s.root, { backgroundColor: C.bg, marginBottom: insets.bottom + 60 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={90}
     >
@@ -356,11 +356,11 @@ const s = StyleSheet.create({
   introIcon: { width: 36, height: 36, backgroundColor: '#0A1628', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   introTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   introSub: { fontSize: 12, color: '#8E8E93', marginTop: 2, lineHeight: 18 },
-  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 140, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   quickAskBtn: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, width: '48%', minHeight: 52, justifyContent: 'center' },
   quickAskText: { fontSize: 12, fontWeight: '500', color: '#8E8E93', lineHeight: 16 },
   msgFlatList: { flex: 1 },
-  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 140, gap: 8 },
+  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20, gap: 8 },
   bubbleWrap: { marginVertical: 2 },
   bubbleRight: { alignItems: 'flex-end' },
   bubbleLeft: { alignItems: 'flex-start' },
