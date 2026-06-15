@@ -246,6 +246,21 @@ export const isProtocolAdded = async (name) => {
   return protocols.some(p => p.name.toLowerCase() === name.toLowerCase() && p.active);
 };
 
+// ─── Reddit credentials ───────────────────────────────────────────────────────
+
+export const getRedditCredentials = async () => {
+  try {
+    const raw = await AsyncStorage.getItem('hair_os_reddit_creds');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveRedditCredentials = async (clientId, clientSecret) => {
+  await AsyncStorage.setItem('hair_os_reddit_creds', JSON.stringify({ clientId, clientSecret }));
+};
+
 // ─── Generic KV ───────────────────────────────────────────────────────────────
 
 export const get = async (key, fallback = null) => {

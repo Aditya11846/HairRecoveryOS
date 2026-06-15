@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { get } from '../utils/storage';
+import { Buffer } from 'buffer';
+import { get, getRedditCredentials } from '../utils/storage';
 import { MODEL, EXPLORE_CACHE_TTL_MS } from '../constants/config';
 import { logger } from '../utils/logger';
 
@@ -63,49 +64,91 @@ async function fetchClinicalTrials() {
   }
 }
 
-async function fetchReddit() {
+async function getRedditToken(clientId, clientSecret) {
+  const TOKEN_KEY = 'hair_os_reddit_token';
   try {
-    const queries = [
-      'oral+minoxidil+results',
-      'dutasteride+regrowth',
-      'crown+aga+progress',
-      'minoxidil+shedding+phase',
-      'oral+minoxidil+side+effects',
-      'norwood+3+recovery',
-    ];
-    const seen = new Set();
-    const results = [];
-
-    for (const q of queries) {
-      try {
-        const res = await fetch(
-          `https://www.reddit.com/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
-          { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
-        );
-        const data = await res.json();
-        const posts = data?.data?.children || [];
-
-        for (const post of posts) {
-          const d = post.data;
-          const url = `https://reddit.com${d.permalink}`;
-          if (!seen.has(url) && d.title) {
-            seen.add(url);
-            results.push({
-              title: d.title,
-              score: d.score || 0,
-              url,
-              excerpt: (d.selftext || '').slice(0, 200),
-            });
-          }
-        }
-      } catch {}
+    const cached = await AsyncStorage.getItem(TOKEN_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Date.now() < parsed.expiresAt) return parsed.access_token;
     }
 
-    return results.sort((a, b) => b.score - a.score).slice(0, 10);
-  } catch (e) {
-    logger.error('Explore', 'Reddit error', e.message);
-    return [];
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'HairRecoveryOS/1.0 by Aditya11846',
+      },
+      body: 'grant_type=client_credentials',
+    });
+
+    const data = await res.json();
+    if (!data.access_token) return null;
+
+    await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify({
+      access_token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    }));
+
+    return data.access_token;
+  } catch {
+    return null;
   }
+}
+
+async function fetchReddit() {
+  const creds = await getRedditCredentials();
+  const queries = [
+    'oral+minoxidil+results',
+    'dutasteride+regrowth',
+    'crown+aga+progress',
+    'minoxidil+shedding+phase',
+    'oral+minoxidil+side+effects',
+    'norwood+3+recovery',
+  ];
+
+  const seen = new Set();
+  const results = [];
+
+  let token = null;
+  if (creds?.clientId && creds?.clientSecret) {
+    token = await getRedditToken(creds.clientId, creds.clientSecret);
+  }
+
+  const baseUrl = token ? 'https://oauth.reddit.com' : 'https://www.reddit.com';
+  const headers = {
+    'User-Agent': 'HairRecoveryOS/1.0 by Aditya11846',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+
+  for (const q of queries) {
+    try {
+      const res = await fetch(
+        `${baseUrl}/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
+        { headers },
+      );
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+
+      for (const post of posts) {
+        const d = post.data;
+        const url = `https://reddit.com${d.permalink}`;
+        if (!seen.has(url) && d.title) {
+          seen.add(url);
+          results.push({
+            title: d.title,
+            score: d.score || 0,
+            url,
+            excerpt: (d.selftext || '').slice(0, 300),
+          });
+        }
+      }
+    } catch {}
+  }
+
+  return results.sort((a, b) => b.score - a.score).slice(0, 10);
 }
 
 async function fetchDermNetNZ() {

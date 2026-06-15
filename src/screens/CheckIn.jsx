@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { saveCheckin, loadCheckin, getTodayKey, getCustomProtocols } from '../utils/storage';
 import SectionLabel from '../components/common/SectionLabel';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 function ToggleRow({ label, icon, value, onChange, last = false }) {
@@ -34,24 +35,30 @@ function ToggleRow({ label, icon, value, onChange, last = false }) {
   );
 }
 
-function SliderRow({ label, value, min, max, step = 1, onChange, display, last = false }) {
+function SliderRow({ label, value, min, max, step = 1, onChange, display }) {
   return (
-    <View style={[s.sliderRow, !last && s.rowBorder]}>
+    <View style={s.sliderCard}>
       <View style={s.sliderHeader}>
-        <Text style={s.rowLabel}>{label}</Text>
-        <Text style={[s.sliderValue, { color: C.accent }]}>{display(value)}</Text>
+        <Text style={s.sliderLabel}>{label}</Text>
+        <View style={s.sliderValueBubble}>
+          <Text style={s.sliderValue}>{display(value)}</Text>
+        </View>
       </View>
       <Slider
+        style={s.slider}
         minimumValue={min}
         maximumValue={max}
         step={step}
         value={value}
         onValueChange={onChange}
         minimumTrackTintColor={C.accent}
-        maximumTrackTintColor={C.card2}
-        thumbTintColor={Platform.OS === 'android' ? C.accent : '#FFFFFF'}
-        style={s.slider}
+        maximumTrackTintColor="rgba(255,255,255,0.08)"
+        thumbTintColor="#FFFFFF"
       />
+      <View style={s.sliderScale}>
+        <Text style={s.sliderScaleText}>{min}</Text>
+        <Text style={s.sliderScaleText}>{max}</Text>
+      </View>
     </View>
   );
 }
@@ -108,6 +115,7 @@ export default function CheckIn() {
     (!showDuta || form.dutasteride !== null);
 
   return (
+    <SwipeTabWrapper currentTab="Check-in">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -126,7 +134,7 @@ export default function CheckIn() {
 
       <View style={s.section}>
         <SectionLabel label="Medications" />
-        <View style={s.card}>
+        <View style={s.toggleCard}>
           <ToggleRow
             label="Oral Minoxidil 2.5mg"
             icon="medical"
@@ -160,7 +168,7 @@ export default function CheckIn() {
       {customProtocols.length > 0 && (
         <View style={s.section}>
           <SectionLabel label="Custom Protocol" />
-          <View style={s.card}>
+          <View style={s.toggleCard}>
             {customProtocols.map((p, i) => (
               <ToggleRow
                 key={p.id}
@@ -177,26 +185,24 @@ export default function CheckIn() {
 
       <View style={s.section}>
         <SectionLabel label="Lifestyle" />
-        <View style={s.card}>
-          <SliderRow label="Cigarettes" value={form.cigarettes} min={0} max={20}
-            onChange={field('cigarettes')} display={v => v === 0 ? '0 ✓' : String(v)} />
-          <SliderRow label="Sleep" value={form.sleep} min={3} max={10} step={0.5}
-            onChange={field('sleep')} display={v => `${v}h`} />
-          <SliderRow label="Stress level" value={form.stress} min={1} max={10}
-            onChange={field('stress')} display={v => `${v}/10`} last />
-        </View>
+        <SliderRow label="Cigarettes" value={form.cigarettes} min={0} max={20}
+          onChange={field('cigarettes')} display={v => v === 0 ? '0 ✓' : String(v)} />
+        <SliderRow label="Sleep" value={form.sleep} min={3} max={10} step={0.5}
+          onChange={field('sleep')} display={v => `${v}h`} />
+        <SliderRow label="Stress level" value={form.stress} min={1} max={10}
+          onChange={field('stress')} display={v => `${v}/10`} />
       </View>
 
       <View style={s.section}>
         <SectionLabel label="Observations" />
-        <View style={s.card}>
+        <View style={s.toggleCard}>
           <ToggleRow label="Shedding noticed" value={form.sheddingNoticed} onChange={field('sheddingNoticed')} last />
         </View>
       </View>
 
       <View style={s.section}>
         <SectionLabel label="Notes" />
-        <View style={s.card}>
+        <View style={s.toggleCard}>
           <TextInput
             value={form.notes}
             onChangeText={field('notes')}
@@ -219,6 +225,7 @@ export default function CheckIn() {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -233,7 +240,40 @@ const s = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 8, paddingHorizontal: 4 },
   card: { backgroundColor: '#1C1C1E', borderRadius: 12, overflow: 'hidden' },
+  toggleCard: {
+    backgroundColor: 'rgba(28,28,30,0.9)',
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.13)',
+    overflow: 'hidden',
+  },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#2C2C2E' },
+  sliderCard: {
+    backgroundColor: 'rgba(28,28,30,0.9)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.13)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  sliderLabel: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  sliderValueBubble: {
+    backgroundColor: C.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(59,130,246,0.3)',
+  },
+  sliderScale: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -4 },
+  sliderScaleText: { fontSize: 10, color: 'rgba(255,255,255,0.25)', fontWeight: '500' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, minHeight: 56, paddingVertical: 12 },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
   rowIcon: { marginRight: 10 },
@@ -241,10 +281,9 @@ const s = StyleSheet.create({
   toggleGroup: { flexDirection: 'row', backgroundColor: '#2C2C2E', borderRadius: 8, overflow: 'hidden' },
   toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   toggleText: { fontSize: 14, fontWeight: '600' },
-  sliderRow: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
-  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  sliderValue: { fontSize: 16, fontWeight: '700' },
-  slider: { marginHorizontal: -4 },
+  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  sliderValue: { fontSize: 15, fontWeight: '700', color: C.accent },
+  slider: { height: 36, marginHorizontal: -4 },
   notesInput: { paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#FFFFFF', minHeight: 90, textAlignVertical: 'top' },
   saveBtn: { height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   saveBtnText: { fontSize: 16, fontWeight: '700' },

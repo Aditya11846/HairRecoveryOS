@@ -7,6 +7,7 @@ import { getCachedOrFreshResearch } from '../services/ai';
 import { addCustomProtocol } from '../utils/storage';
 import ResearchCard from '../components/cards/ResearchCard';
 import AddToProtocolSheet from '../components/sheets/AddToProtocolSheet';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 function PulsingDot() {
@@ -77,6 +78,7 @@ export default function Research() {
     : null;
 
   return (
+    <SwipeTabWrapper currentTab="Research">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -141,6 +143,7 @@ export default function Research() {
         ))
       )}
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 

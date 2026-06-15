@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-15
+### Added
+- Splash screen with HairOS logo animation (ascending bars, fade in/out)
+- Swipe between tabs (PanResponder-based, Apple Music style)
+- In-app study reader modal (PubMed abstract fetch, no Safari)
+- Explore: like/dislike reactions + notes on each card
+- Progress: Today status card (complete/partial/missed) with Log → button
+- Reddit OAuth setup UI in Claude tab settings
+- Glass slider cards in CheckIn (value bubble, min/max labels)
+- HairOS mini logo in Overview header (replaces "Powered by React Native")
+- Tretinoin Q&A card (corrected from isotretinoin)
+
+### Fixed
+- Tab bar "Check-in" and "Claude" labels no longer clipped at screen edges
+- AskClaude message bubbles have depth and glow
+
+### Removed
+- "Powered by React Native" footer from Overview
+
 ## [1.2.0] - 2026-06-15
 ### Added
 - Explore: pinned Q&A section (shedding reliability, isotretinoin, smoking impact)

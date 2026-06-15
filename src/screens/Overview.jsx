@@ -2,14 +2,40 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTodayKey, getStreakCount, getRecentCheckins, loadCheckin, daysToCheckpoint, get, set } from '../utils/storage';
 import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
 import SectionLabel from '../components/common/SectionLabel';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
 import { C } from '../theme';
 
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
+
+function MiniLogo() {
+  const bars = [
+    { h: 8, color: '#1a4d3a' },
+    { h: 12, color: '#26a641' },
+    { h: 16, color: '#39d353' },
+    { h: 20, color: '#56e878' },
+  ];
+  return (
+    <Svg width={28} height={20} viewBox="0 0 28 20">
+      {bars.map((bar, i) => (
+        <Rect
+          key={i}
+          x={i * 7}
+          y={20 - bar.h}
+          width={5}
+          height={bar.h}
+          rx={2.5}
+          fill={bar.color}
+        />
+      ))}
+    </Svg>
+  );
+}
 const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡' };
 
 function EvidenceBar({ level, label }) {
@@ -159,6 +185,7 @@ export default function Overview() {
   })() : null;
 
   return (
+    <SwipeTabWrapper currentTab="Overview">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
@@ -166,6 +193,11 @@ export default function Overview() {
     >
       <View style={s.header}>
         <Text style={s.dateLabel}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+        <View style={s.logoRow}>
+          <MiniLogo />
+          <Text style={s.logoLabel}>HairOS</Text>
+          <View style={s.versionPill}><Text style={s.versionText}>v1.0</Text></View>
+        </View>
         <Text style={s.title}>Overview</Text>
       </View>
 
@@ -294,10 +326,8 @@ export default function Overview() {
         </View>
       </View>
 
-      <View style={s.poweredBy}>
-        <Text style={s.poweredByText}>Powered by React Native · HairOS v1.0</Text>
-      </View>
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -308,7 +338,11 @@ const s = StyleSheet.create({
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
   title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, marginBottom: 10, paddingHorizontal: 4 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  logoLabel: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.2 },
+  versionPill: { backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  versionText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
   card: {
     backgroundColor: 'rgba(28, 28, 30, 0.9)',
     borderRadius: 16,
@@ -400,6 +434,4 @@ const s = StyleSheet.create({
   evidenceBarRow: { flexDirection: 'row', gap: 3, marginBottom: 4 },
   evidenceSegment: { flex: 1, height: 4, borderRadius: 2 },
   evidenceText: { fontSize: 11, color: '#8E8E93', fontStyle: 'italic' },
-  poweredBy: { alignItems: 'center', marginTop: 24, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#1C1C1E' },
-  poweredByText: { fontSize: 11, color: '#3A3A3C', letterSpacing: 0.3 },
 });

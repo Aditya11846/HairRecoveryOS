@@ -9,6 +9,8 @@
 | B004 | AskClaude.jsx | Email hardcoded in system prompt | v1.1.0 |
 | B005 | AskClaude.jsx | Context stacked on every multi-turn message | v1.1.0 |
 | B006 | Overview.jsx | insightsFetched ref never reset on new day | v1.1.0 |
+| B009 | Explore.jsx | "Read full study" opened Safari — now in-app modal | v1.3.0 |
+| B010 | Explore.jsx | Q&A card asked about isotretinoin (wrong drug) — fixed to tretinoin | v1.3.0 |
 
 ## OPEN
 | ID | File | Bug | Priority |
@@ -23,3 +25,4 @@
 | G002 | No bloodwork value logging (only reminder card) | Sprint 2 |
 | G003 | No export / PDF report generation | Sprint 3 |
 | G004 | Phase 1 sleep14 objective not auto-derived | Sprint 2 |
+| G005 | Reddit OAuth not configured — fetching as anonymous until credentials entered in Claude tab | Sprint 3 |

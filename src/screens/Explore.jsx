@@ -1,12 +1,53 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Modal, Pressable, Linking, RefreshControl,
+  ActivityIndicator, Modal, Pressable, Linking, RefreshControl, TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCachedOrFreshExplore } from '../services/explore';
 import { addCustomProtocol, isProtocolAdded } from '../utils/storage';
+import SwipeTabWrapper from '../components/common/SwipeTabWrapper';
+import StudyReaderModal from '../components/modals/StudyReaderModal';
 import { C } from '../theme';
+
+const REACTIONS_KEY = 'hair_os_explore_reactions';
+const NOTES_KEY = 'hair_os_explore_notes';
+
+async function getReactions() {
+  try {
+    const raw = await AsyncStorage.getItem(REACTIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+async function setReaction(itemUrl, reaction) {
+  const reactions = await getReactions();
+  if (reactions[itemUrl] === reaction) {
+    delete reactions[itemUrl];
+  } else {
+    reactions[itemUrl] = reaction;
+  }
+  await AsyncStorage.setItem(REACTIONS_KEY, JSON.stringify(reactions));
+  return reactions;
+}
+
+async function getNotes() {
+  try {
+    const raw = await AsyncStorage.getItem(NOTES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+async function saveNote(itemUrl, note) {
+  const notes = await getNotes();
+  if (note.trim()) {
+    notes[itemUrl] = note.trim();
+  } else {
+    delete notes[itemUrl];
+  }
+  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
 
 const SOURCE_COLORS = {
   PubMed: '#3B82F6',
@@ -47,10 +88,10 @@ const PINNED_QA = [
     color: C.accent,
   },
   {
-    id: 'isotretinoin',
-    question: 'Should isotretinoin be applied before minoxidil for better absorption?',
-    answer: "Not recommended without Dr. Soni's guidance. Isotretinoin (Tretiva) affects sebaceous glands systemically when taken orally — it's not applied topically. If referring to tretinoin (retinoic acid) as a topical pre-treatment: some evidence suggests tretinoin 0.025% increases minoxidil scalp absorption by ~40%, but it can cause irritation and must be dosed carefully. Ask Dr. Soni specifically about tretinoin + minoxidil combination.",
-    icon: '💊',
+    id: 'tretinoin',
+    question: 'Does tretinoin cream on the scalp before minoxidil improve absorption?',
+    answer: "Yes — but use the right drug. Tretinoin (retinoic acid, 0.025–0.05% cream) applied to the scalp 30–60 minutes before topical minoxidil has been shown in studies to increase minoxidil absorption by ~33–40% by enhancing skin permeability. This is different from isotretinoin (oral Accutane/Tretiva) which you took in 2022 — that's a systemic drug, not applied topically.\n\nThe combination can work well but tretinoin can cause scalp irritation and dryness. This is a specific question to bring to Dr. Soni — she may already have a view given your Novegrow 10% protocol. Worth asking at your next appointment.",
+    icon: '🧴',
     color: '#A855F7',
   },
   {
@@ -105,10 +146,14 @@ function FilterTabs({ active, onChange, counts }) {
   );
 }
 
-function ExploreCard({ item, onAddToProtocol }) {
+function ExploreCard({ item, onAddToProtocol, onReadMore }) {
   const [expanded, setExpanded] = useState(false);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [reaction, setReactionState] = useState(null);
+  const [note, setNote] = useState('');
+  const [noteVisible, setNoteVisible] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
   const sourceColor = SOURCE_COLORS[item.source] || C.accent;
   const relevanceColor = RELEVANCE_COLORS[item.relevance] || C.sub;
   const icon = SOURCE_ICONS[item.source] || '📄';
@@ -116,6 +161,15 @@ function ExploreCard({ item, onAddToProtocol }) {
   useEffect(() => {
     if (item.canAddToProtocol) isProtocolAdded(item.title).then(setAdded);
   }, [item.title, item.canAddToProtocol]);
+
+  useEffect(() => {
+    if (!item.url) return;
+    Promise.all([getReactions(), getNotes()]).then(([reactions, notes]) => {
+      setReactionState(reactions[item.url] || null);
+      setNote(notes[item.url] || '');
+      setNoteDraft(notes[item.url] || '');
+    });
+  }, [item.url]);
 
   const handleAdd = () => {
     setAdding(true);
@@ -172,9 +226,75 @@ function ExploreCard({ item, onAddToProtocol }) {
             </Text>
           </View>
 
+          {/* Like / Dislike row */}
+          <View style={s.reactionRow}>
+            <TouchableOpacity
+              onPress={async () => {
+                const updated = await setReaction(item.url, 'like');
+                setReactionState(updated[item.url] || null);
+              }}
+              style={[s.reactionBtn, reaction === 'like' && s.reactionBtnActive]}
+              activeOpacity={0.7}
+            >
+              <Text style={s.reactionIcon}>👍</Text>
+              <Text style={[s.reactionLabel, reaction === 'like' && { color: C.green }]}>Useful</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                const updated = await setReaction(item.url, 'dislike');
+                setReactionState(updated[item.url] || null);
+              }}
+              style={[s.reactionBtn, reaction === 'dislike' && s.reactionBtnActiveRed]}
+              activeOpacity={0.7}
+            >
+              <Text style={s.reactionIcon}>👎</Text>
+              <Text style={[s.reactionLabel, reaction === 'dislike' && { color: C.red }]}>Not relevant</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setNoteVisible(v => !v)}
+              style={[s.reactionBtn, note && s.reactionBtnNote]}
+              activeOpacity={0.7}
+            >
+              <Text style={s.reactionIcon}>{note ? '📝' : '✏'}</Text>
+              <Text style={[s.reactionLabel, note && { color: C.orange }]}>Note</Text>
+            </TouchableOpacity>
+          </View>
+
+          {noteVisible && (
+            <View style={s.noteBox}>
+              <TextInput
+                style={s.noteInput}
+                value={noteDraft}
+                onChangeText={setNoteDraft}
+                placeholder="Add a note about this study..."
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                multiline
+                maxLength={300}
+              />
+              <TouchableOpacity
+                onPress={async () => {
+                  await saveNote(item.url, noteDraft);
+                  setNote(noteDraft);
+                  setNoteVisible(false);
+                }}
+                style={s.noteSaveBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={s.noteSaveBtnText}>Save note</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {note && !noteVisible && (
+            <View style={s.notePill}>
+              <Text style={s.notePillText} numberOfLines={2}>📝 {note}</Text>
+            </View>
+          )}
+
           {item.url ? (
-            <TouchableOpacity onPress={() => Linking.openURL(item.url)} style={s.readMoreBtn} activeOpacity={0.7}>
-              <Text style={s.readMoreText}>Read full study →</Text>
+            <TouchableOpacity onPress={() => onReadMore && onReadMore(item)} style={s.readMoreBtn} activeOpacity={0.7}>
+              <Text style={s.readMoreText}>Read in app →</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -233,6 +353,7 @@ export default function Explore() {
   const [sheetItem, setSheetItem] = useState(null);
   const [sheetCb, setSheetCb] = useState(null);
   const [sheetCancelCb, setSheetCancelCb] = useState(null);
+  const [readerItem, setReaderItem] = useState(null);
   const loaded = useRef(false);
 
   const load = useCallback(async (force = false) => {
@@ -305,6 +426,7 @@ export default function Explore() {
     : null;
 
   return (
+    <SwipeTabWrapper currentTab="Explore">
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
@@ -314,6 +436,7 @@ export default function Explore() {
       }
     >
       <AddSheet item={sheetItem} visible={!!sheetItem} onConfirm={confirmAdd} onCancel={cancelAdd} />
+      <StudyReaderModal item={readerItem} visible={!!readerItem} onClose={() => setReaderItem(null)} />
 
       <View style={s.header}>
         <View style={s.headerRow}>
@@ -372,12 +495,13 @@ export default function Explore() {
             </View>
           ) : (
             filteredItems.map((item, i) => (
-              <ExploreCard key={i} item={item} onAddToProtocol={handleAdd} />
+              <ExploreCard key={i} item={item} onAddToProtocol={handleAdd} onReadMore={setReaderItem} />
             ))
           )}
         </>
       )}
     </ScrollView>
+    </SwipeTabWrapper>
   );
 }
 
@@ -457,6 +581,19 @@ const s = StyleSheet.create({
   actionText: { fontSize: 12, fontWeight: '700' },
   readMoreBtn: { alignSelf: 'flex-start' },
   readMoreText: { fontSize: 13, color: C.accent, fontWeight: '600' },
+  reactionRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  reactionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: 'rgba(44,44,46,0.8)', borderRadius: 10, paddingVertical: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.05)' },
+  reactionBtnActive: { backgroundColor: 'rgba(48,209,88,0.15)', borderColor: 'rgba(48,209,88,0.3)' },
+  reactionBtnActiveRed: { backgroundColor: 'rgba(255,69,58,0.15)', borderColor: 'rgba(255,69,58,0.3)' },
+  reactionBtnNote: { backgroundColor: 'rgba(255,159,10,0.15)', borderColor: 'rgba(255,159,10,0.3)' },
+  reactionIcon: { fontSize: 14 },
+  reactionLabel: { fontSize: 12, fontWeight: '600', color: C.sub },
+  noteBox: { backgroundColor: 'rgba(28,28,30,0.9)', borderRadius: 12, padding: 12, marginTop: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
+  noteInput: { color: '#FFFFFF', fontSize: 14, lineHeight: 20, minHeight: 60 },
+  noteSaveBtn: { alignSelf: 'flex-end', marginTop: 8, backgroundColor: C.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  noteSaveBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  notePill: { backgroundColor: 'rgba(255,159,10,0.1)', borderRadius: 10, padding: 10, marginTop: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,159,10,0.2)' },
+  notePillText: { fontSize: 12, color: C.orange, lineHeight: 17 },
   addBtn: { backgroundColor: C.accent, borderRadius: 14, height: 42, alignItems: 'center', justifyContent: 'center' },
   addBtnDone: { backgroundColor: '#1A2A1F' },
   addBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
