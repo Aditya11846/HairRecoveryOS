@@ -85,18 +85,32 @@ export default function App() {
           screenOptions={{
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: 'rgba(0,0,0,0.92)',
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'rgba(10,10,10,0.88)',
               borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: 'rgba(255,255,255,0.08)',
-              paddingBottom: 4,
-              height: 60,
+              borderTopColor: 'rgba(255,255,255,0.12)',
+              height: 82,
+              paddingBottom: 24,
+              paddingTop: 10,
+              elevation: 0,
             },
             tabBarActiveTintColor: '#3B82F6',
-            tabBarInactiveTintColor: '#8E8E93',
+            tabBarInactiveTintColor: 'rgba(142,142,147,0.7)',
             tabBarLabelStyle: {
               fontSize: 10,
               fontWeight: '600',
-              letterSpacing: -0.2,
+              letterSpacing: 0,
+              marginTop: 2,
+            },
+            tabBarIconStyle: {
+              marginBottom: 0,
+            },
+            tabBarItemStyle: {
+              paddingHorizontal: 0,
+              paddingVertical: 0,
             },
           }}
         >

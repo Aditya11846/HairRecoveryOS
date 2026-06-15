@@ -12,25 +12,71 @@ import { C } from '../theme';
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
 const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡' };
 
-function EvidenceBar({ level, label }) {
+const EVIDENCE_LEVELS = {
+  'Very Strong — superior to finasteride in RCTs': 5,
+  'Strong — multiple RCTs': 4,
+  'Strong — FDA approved 30+ years': 4,
+  'Moderate — Hairmax RCTs': 3,
+};
+
+function EvidenceBar({ evidence }) {
+  const level = EVIDENCE_LEVELS[evidence] || 3;
+  const colors = ['#1a4d3a', '#26a641', '#39d353', '#39d353', '#56e878'];
   return (
-    <View style={s.evidenceContainer}>
-      <Text style={s.evidenceLabel}>EVIDENCE</Text>
-      <View style={s.evidenceBarRow}>
+    <View style={eb.container}>
+      <Text style={eb.label}>EVIDENCE STRENGTH</Text>
+      <View style={eb.barRow}>
         {[1, 2, 3, 4, 5].map(i => (
-          <View
-            key={i}
-            style={[s.evidenceSegment, {
-              backgroundColor: i <= level ? C.green : '#2C2C2E',
-              opacity: i <= level ? (0.4 + (i / level) * 0.6) : 1,
-            }]}
-          />
+          <View key={i} style={[eb.segment, { backgroundColor: i <= level ? colors[i - 1] : 'rgba(255,255,255,0.06)' }]} />
         ))}
       </View>
-      <Text style={s.evidenceText}>{label}</Text>
+      <Text style={eb.evidenceText}>{evidence}</Text>
     </View>
   );
 }
+const eb = StyleSheet.create({
+  container: { backgroundColor: 'rgba(44,44,46,0.6)', borderRadius: 12, padding: 12, marginTop: 4 },
+  label: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 8 },
+  barRow: { flexDirection: 'row', gap: 4, marginBottom: 6 },
+  segment: { flex: 1, height: 5, borderRadius: 3 },
+  evidenceText: { fontSize: 11, color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' },
+});
+
+function ProtocolMechanism({ id }) {
+  const configs = {
+    oral: { title: 'Mechanism: Systemic vasodilation', steps: ['Absorbed orally', 'Opens K⁺ ATP channels', 'Dilates scalp blood vessels', '↑ Nutrient delivery to follicles'], color: '#3B82F6' },
+    topical: { title: 'Mechanism: Direct follicle stimulation', steps: ['Applied to crown', 'Penetrates to dermis', 'Activates hair follicle stem cells', 'Extends anagen (growth) phase'], color: '#30D158' },
+    lllt: { title: 'Mechanism: Photobiomodulation', steps: ['650nm red light absorbed', '↑ ATP in follicle mitochondria', 'Reduces inflammation', 'Shifts follicles into anagen'], color: '#FF453A' },
+    dutalin: { title: 'Mechanism: DHT suppression', steps: ['Blocks 5α-reductase I + II', '↓ DHT by ~90%', 'Follicles stop miniaturizing', 'Terminal hair regrowth resumes'], color: '#A855F7' },
+  };
+  const cfg = configs[id];
+  if (!cfg) return null;
+  return (
+    <View style={[pm.container, { borderLeftColor: cfg.color }]}>
+      <Text style={[pm.title, { color: cfg.color }]}>{cfg.title}</Text>
+      <View style={pm.stepsRow}>
+        {cfg.steps.map((step, i) => (
+          <React.Fragment key={i}>
+            <View style={pm.stepBubble}>
+              <Text style={pm.stepNum}>{i + 1}</Text>
+              <Text style={pm.stepText}>{step}</Text>
+            </View>
+            {i < cfg.steps.length - 1 && <Text style={[pm.arrow, { color: cfg.color }]}>→</Text>}
+          </React.Fragment>
+        ))}
+      </View>
+    </View>
+  );
+}
+const pm = StyleSheet.create({
+  container: { backgroundColor: 'rgba(28,28,30,0.8)', borderRadius: 12, padding: 12, marginTop: 4, borderLeftWidth: 3 },
+  title: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2, marginBottom: 10 },
+  stepsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+  stepBubble: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 7, alignItems: 'center', minWidth: 64, maxWidth: 80 },
+  stepNum: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.3)', marginBottom: 3 },
+  stepText: { fontSize: 9, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 12 },
+  arrow: { fontSize: 14, fontWeight: '700', opacity: 0.5 },
+});
 
 function StatCard({ label, value, unit, valueColor = C.text, sub }) {
   return (
@@ -161,7 +207,7 @@ export default function Overview() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={s.header}>
@@ -262,25 +308,18 @@ export default function Overview() {
                     <Text style={[s.chevron, isOpen && s.chevronOpen]}>›</Text>
                   </View>
                 </TouchableOpacity>
-                {isOpen && (() => {
-                  const evidenceLevel = {
-                    'Very Strong — superior to finasteride in RCTs': 5,
-                    'Strong — multiple RCTs': 4,
-                    'Strong — FDA approved 30+ years': 4,
-                    'Moderate — Hairmax RCTs': 3,
-                  }[item.evidence] || 3;
-                  return (
-                    <View style={s.accordionBody}>
-                      {[['Timing', item.timing], ['Evidence', item.evidence], ['Notes', item.notes]].map(([k, v]) => (
-                        <View key={k} style={s.detailRow}>
-                          <Text style={s.detailKey}>{k}</Text>
-                          <Text style={s.detailVal}>{v}</Text>
-                        </View>
-                      ))}
-                      <EvidenceBar level={evidenceLevel} label={item.evidence} />
-                    </View>
-                  );
-                })()}
+                {isOpen && (
+                  <View style={s.accordionBody}>
+                    {[['Timing', item.timing], ['Notes', item.notes]].map(([k, v]) => (
+                      <View key={k} style={s.detailRow}>
+                        <Text style={s.detailKey}>{k}</Text>
+                        <Text style={s.detailVal}>{v}</Text>
+                      </View>
+                    ))}
+                    <EvidenceBar evidence={item.evidence} />
+                    <ProtocolMechanism id={item.id} />
+                  </View>
+                )}
               </View>
             );
           })}
@@ -393,13 +432,14 @@ const s = StyleSheet.create({
   bloodworkCard: { marginTop: 8, backgroundColor: '#1C1E2A', borderRadius: 16, padding: 16 },
   bloodworkTitle: { fontSize: 10, fontWeight: '700', color: '#3B82F6', letterSpacing: 0.8, marginBottom: 6 },
   bloodworkText: { fontSize: 12, color: '#8E8E93', lineHeight: 18 },
-  protocolIconBubble: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#2C2C2E', alignItems: 'center', justifyContent: 'center' },
-  protocolIconText: { fontSize: 18 },
-  evidenceContainer: { marginTop: 8 },
-  evidenceLabel: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 5 },
-  evidenceBarRow: { flexDirection: 'row', gap: 3, marginBottom: 4 },
-  evidenceSegment: { flex: 1, height: 4, borderRadius: 2 },
-  evidenceText: { fontSize: 11, color: '#8E8E93', fontStyle: 'italic' },
+  protocolIconBubble: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  protocolIconText: { fontSize: 20 },
   poweredBy: { alignItems: 'center', marginTop: 24, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#1C1C1E' },
   poweredByText: { fontSize: 11, color: '#3A3A3C', letterSpacing: 0.3 },
 });

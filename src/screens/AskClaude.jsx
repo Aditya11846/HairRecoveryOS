@@ -314,7 +314,7 @@ export default function AskClaude() {
       </View>
 
       {/* Input bar */}
-      <View style={s.inputBar}>
+      <View style={[s.inputBar, { paddingBottom: insets.bottom + 8 }]}>
         <View style={s.inputWrap}>
           <TextInput
             value={input}
