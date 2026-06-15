@@ -8,29 +8,124 @@ import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
 import SectionLabel from '../components/common/SectionLabel';
 import { C } from '../theme';
+import Svg, { Rect as SvgRect, Path as SvgPath } from 'react-native-svg';
 
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
-const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡' };
+const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡️' };
 
-function EvidenceBar({ level, label }) {
+const EVIDENCE_LEVELS = {
+  'Very Strong — superior to finasteride in RCTs': 5,
+  'Strong — multiple RCTs': 4,
+  'Strong — FDA approved 30+ years': 4,
+  'Moderate — Hairmax RCTs': 3,
+};
+
+function EvidenceBar({ evidence }) {
+  const level = EVIDENCE_LEVELS[evidence] || 3;
   return (
-    <View style={s.evidenceContainer}>
-      <Text style={s.evidenceLabel}>EVIDENCE</Text>
-      <View style={s.evidenceBarRow}>
+    <View style={evb.wrap}>
+      <Text style={evb.label}>EVIDENCE STRENGTH</Text>
+      <View style={evb.row}>
         {[1, 2, 3, 4, 5].map(i => (
           <View
             key={i}
-            style={[s.evidenceSegment, {
-              backgroundColor: i <= level ? C.green : '#2C2C2E',
-              opacity: i <= level ? (0.4 + (i / level) * 0.6) : 1,
-            }]}
+            style={[evb.seg, { backgroundColor: i <= level ? '#39d353' : 'rgba(255,255,255,0.07)' }]}
           />
         ))}
       </View>
-      <Text style={s.evidenceText}>{label}</Text>
+      <Text style={evb.sub}>{evidence}</Text>
     </View>
   );
 }
+const evb = StyleSheet.create({
+  wrap: { backgroundColor: 'rgba(44,44,46,0.7)', borderRadius: 12, padding: 12, marginTop: 10 },
+  label: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 7 },
+  row: { flexDirection: 'row', gap: 4, marginBottom: 6 },
+  seg: { flex: 1, height: 5, borderRadius: 3 },
+  sub: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' },
+});
+
+const APPLICATION_GUIDES = {
+  oral: {
+    color: '#3B82F6',
+    title: 'How to take',
+    steps: [
+      { icon: '🌅', title: 'Morning with food', body: 'Take with breakfast — food reduces blood pressure side effects. Same time daily without fail.' },
+      { icon: '⏰', title: 'Missed dose?', body: 'Take as soon as remembered. If next dose is within 6 hours, skip — never double up.' },
+      { icon: '📈', title: 'What to expect', body: 'Increased shedding weeks 2–8 is normal and positive. First real regrowth visible at 3–6 months of strict consistency.' },
+    ],
+    note: 'Works systemically — affects all scalp hair, not just crown. Full effect takes 12+ months.',
+  },
+  topical: {
+    color: '#30D158',
+    title: 'How to apply Novegrow 10% solution',
+    steps: [
+      { icon: '💧', title: 'Dropper only, NOT spray', body: 'Dropper delivers precise 1mL to the scalp. Spray disperses product to hair shaft where it does nothing. Use dropper.' },
+      { icon: '🦱', title: 'Part hair first', body: 'Part hair to expose scalp directly. Apply drops to the exposed scalp, not the hair. 4–5 drops across the crown patch.' },
+      { icon: '👆', title: "Tap, don't rub", body: 'Light fingertip tapping to spread. Rubbing moves product off scalp onto surrounding hair. Tap gently and let absorb.' },
+      { icon: '🌙', title: 'Bedtime = best time', body: 'Must stay on scalp for minimum 4 hours. No washing, no heavy sweating, no helmet. Sleep locks in absorption.' },
+    ],
+    note: '⚡ Research tip: Tretinoin 0.025% cream applied 30–60 min before minoxidil increases absorption ~33%. Ask Dr. Soni about adding this.',
+  },
+  lllt: {
+    color: '#FF453A',
+    title: 'How to use red light comb',
+    steps: [
+      { icon: '💆', title: 'Dry hair only', body: 'Water absorbs 650nm light before it reaches follicles. Completely dry hair and scalp before every session.' },
+      { icon: '⏱️', title: '4 seconds per section', body: 'Slow, deliberate passes. Hold comb stationary for 4 seconds in each position. Count it out — most people go too fast.' },
+      { icon: '🎯', title: 'Crown focus', body: 'Start at the crown patch edge and work inward in a grid pattern. 15 min total on the vertex — not spread across whole head.' },
+      { icon: '📅', title: 'Mon / Wed / Fri', body: 'Three sessions per week. Follicles need 48h recovery between photobiomodulation sessions. Daily use reduces effectiveness.' },
+    ],
+    note: '650nm light increases ATP in follicle mitochondria — literally energises the hair growth machinery. Consistent rhythm matters more than duration.',
+  },
+  dutalin: {
+    color: '#A855F7',
+    title: 'How to take dutasteride',
+    steps: [
+      { icon: '📅', title: 'Monday + Thursday only', body: 'Twice weekly is evidence-based. Dutasteride half-life is ~5 weeks — it accumulates. Daily dosing is unnecessary.' },
+      { icon: '🕐', title: 'Consistent timing', body: 'Same time of day on dose days. With or without food — no interaction. Set a phone alarm for both days.' },
+      { icon: '🚫', title: 'Never double up', body: "Missed a dose? Skip it completely. The 5-week half-life means one missed dose is clinically irrelevant — just continue normal schedule." },
+      { icon: '🔬', title: 'Bloodwork note', body: "Dutasteride lowers PSA readings. If ever getting PSA tested, inform the doctor you're on dutasteride — results need adjustment." },
+    ],
+    note: 'DHT suppression: dutasteride ~90%, finasteride ~70%. Full miniaturization reversal takes 12–18 months. Do not switch or stop early.',
+  },
+};
+
+function ApplicationGuide({ id }) {
+  const guide = APPLICATION_GUIDES[id];
+  if (!guide) return null;
+  return (
+    <View style={[apg.wrap, { borderLeftColor: guide.color }]}>
+      <Text style={[apg.title, { color: guide.color }]}>{guide.title}</Text>
+      {guide.steps.map((step, i) => (
+        <View key={i} style={apg.step}>
+          <Text style={apg.icon}>{step.icon}</Text>
+          <View style={apg.textBlock}>
+            <Text style={apg.stepTitle}>{step.title}</Text>
+            <Text style={apg.stepBody}>{step.body}</Text>
+          </View>
+        </View>
+      ))}
+      <View style={apg.noteBox}>
+        <Text style={apg.noteText}>{guide.note}</Text>
+      </View>
+    </View>
+  );
+}
+const apg = StyleSheet.create({
+  wrap: {
+    backgroundColor: 'rgba(28,28,30,0.85)',
+    borderRadius: 12, padding: 14, marginTop: 10, borderLeftWidth: 3,
+  },
+  title: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1, marginBottom: 12 },
+  step: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'flex-start' },
+  icon: { fontSize: 18, width: 24, textAlign: 'center', marginTop: 1 },
+  textBlock: { flex: 1 },
+  stepTitle: { fontSize: 12, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  stepBody: { fontSize: 12, color: 'rgba(255,255,255,0.58)', lineHeight: 17 },
+  noteBox: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, marginTop: 4 },
+  noteText: { fontSize: 11, color: 'rgba(255,255,255,0.42)', lineHeight: 16, fontStyle: 'italic' },
+});
 
 function StatCard({ label, value, unit, valueColor = C.text, sub }) {
   return (
@@ -161,7 +256,7 @@ export default function Overview() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={s.header}>
@@ -249,8 +344,8 @@ export default function Overview() {
                   activeOpacity={0.7}
                 >
                   <View style={s.accordionLeft}>
-                    <View style={s.protocolIconBubble}>
-                      <Text style={s.protocolIconText}>{PROTOCOL_ICONS[item.id] || '●'}</Text>
+                    <View style={s.protoIconBubble}>
+                      <Text style={s.protoIconText}>{PROTOCOL_ICONS[item.id] || '●'}</Text>
                     </View>
                     <View>
                       <Text style={s.accordionTitle}>{item.name}</Text>
@@ -262,25 +357,20 @@ export default function Overview() {
                     <Text style={[s.chevron, isOpen && s.chevronOpen]}>›</Text>
                   </View>
                 </TouchableOpacity>
-                {isOpen && (() => {
-                  const evidenceLevel = {
-                    'Very Strong — superior to finasteride in RCTs': 5,
-                    'Strong — multiple RCTs': 4,
-                    'Strong — FDA approved 30+ years': 4,
-                    'Moderate — Hairmax RCTs': 3,
-                  }[item.evidence] || 3;
-                  return (
-                    <View style={s.accordionBody}>
-                      {[['Timing', item.timing], ['Evidence', item.evidence], ['Notes', item.notes]].map(([k, v]) => (
-                        <View key={k} style={s.detailRow}>
-                          <Text style={s.detailKey}>{k}</Text>
-                          <Text style={s.detailVal}>{v}</Text>
-                        </View>
-                      ))}
-                      <EvidenceBar level={evidenceLevel} label={item.evidence} />
+                {isOpen && (
+                  <View style={s.accordionBody}>
+                    <View style={s.detailRow}>
+                      <Text style={s.detailKey}>Timing</Text>
+                      <Text style={s.detailVal}>{item.timing}</Text>
                     </View>
-                  );
-                })()}
+                    <View style={s.detailRow}>
+                      <Text style={s.detailKey}>Notes</Text>
+                      <Text style={s.detailVal}>{item.notes}</Text>
+                    </View>
+                    <EvidenceBar evidence={item.evidence} />
+                    <ApplicationGuide id={item.id} />
+                  </View>
+                )}
               </View>
             );
           })}
@@ -395,6 +485,15 @@ const s = StyleSheet.create({
   bloodworkText: { fontSize: 12, color: '#8E8E93', lineHeight: 18 },
   protocolIconBubble: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#2C2C2E', alignItems: 'center', justifyContent: 'center' },
   protocolIconText: { fontSize: 18 },
+  protoIconBubble: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginRight: 4,
+  },
+  protoIconText: { fontSize: 20 },
   evidenceContainer: { marginTop: 8 },
   evidenceLabel: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 5 },
   evidenceBarRow: { flexDirection: 'row', gap: 3, marginBottom: 4 },

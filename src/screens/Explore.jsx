@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCachedOrFreshExplore } from '../services/explore';
 import { addCustomProtocol, isProtocolAdded } from '../utils/storage';
 import { C } from '../theme';
+import StudyReaderModal from '../components/modals/StudyReaderModal';
 
 const SOURCE_COLORS = {
   PubMed: '#3B82F6',
@@ -105,7 +106,7 @@ function FilterTabs({ active, onChange, counts }) {
   );
 }
 
-function ExploreCard({ item, onAddToProtocol }) {
+function ExploreCard({ item, onAddToProtocol, onReadMore }) {
   const [expanded, setExpanded] = useState(false);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -173,8 +174,8 @@ function ExploreCard({ item, onAddToProtocol }) {
           </View>
 
           {item.url ? (
-            <TouchableOpacity onPress={() => Linking.openURL(item.url)} style={s.readMoreBtn} activeOpacity={0.7}>
-              <Text style={s.readMoreText}>Read full study →</Text>
+            <TouchableOpacity onPress={() => onReadMore && onReadMore(item)} activeOpacity={0.7} style={s.readInAppBtn}>
+              <Text style={s.readInAppText}>Read in app →</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -233,6 +234,7 @@ export default function Explore() {
   const [sheetItem, setSheetItem] = useState(null);
   const [sheetCb, setSheetCb] = useState(null);
   const [sheetCancelCb, setSheetCancelCb] = useState(null);
+  const [readerItem, setReaderItem] = useState(null);
   const loaded = useRef(false);
 
   const load = useCallback(async (force = false) => {
@@ -307,13 +309,14 @@ export default function Explore() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />
       }
     >
       <AddSheet item={sheetItem} visible={!!sheetItem} onConfirm={confirmAdd} onCancel={cancelAdd} />
+      <StudyReaderModal item={readerItem} visible={!!readerItem} onClose={() => setReaderItem(null)} />
 
       <View style={s.header}>
         <View style={s.headerRow}>
@@ -372,7 +375,7 @@ export default function Explore() {
             </View>
           ) : (
             filteredItems.map((item, i) => (
-              <ExploreCard key={i} item={item} onAddToProtocol={handleAdd} />
+              <ExploreCard key={i} item={item} onAddToProtocol={handleAdd} onReadMore={setReaderItem} />
             ))
           )}
         </>
@@ -457,6 +460,8 @@ const s = StyleSheet.create({
   actionText: { fontSize: 12, fontWeight: '700' },
   readMoreBtn: { alignSelf: 'flex-start' },
   readMoreText: { fontSize: 13, color: C.accent, fontWeight: '600' },
+  readInAppBtn: { marginTop: 10, alignSelf: 'flex-start' },
+  readInAppText: { fontSize: 13, fontWeight: '600', color: '#3B82F6' },
   addBtn: { backgroundColor: C.accent, borderRadius: 14, height: 42, alignItems: 'center', justifyContent: 'center' },
   addBtnDone: { backgroundColor: '#1A2A1F' },
   addBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },

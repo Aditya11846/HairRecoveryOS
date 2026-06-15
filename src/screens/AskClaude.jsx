@@ -183,7 +183,7 @@ export default function AskClaude() {
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: C.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={82}
+      keyboardVerticalOffset={90}
     >
       {/* API Key modal */}
       <Modal visible={showKeyModal} transparent animationType="slide" onRequestClose={() => setShowKeyModal(false)}>
@@ -356,11 +356,11 @@ const s = StyleSheet.create({
   introIcon: { width: 36, height: 36, backgroundColor: '#0A1628', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   introTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   introSub: { fontSize: 12, color: '#8E8E93', marginTop: 2, lineHeight: 18 },
-  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 180, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 140, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   quickAskBtn: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, width: '48%', minHeight: 52, justifyContent: 'center' },
   quickAskText: { fontSize: 12, fontWeight: '500', color: '#8E8E93', lineHeight: 16 },
   msgFlatList: { flex: 1 },
-  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 180, gap: 8 },
+  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 140, gap: 8 },
   bubbleWrap: { marginVertical: 2 },
   bubbleRight: { alignItems: 'flex-end' },
   bubbleLeft: { alignItems: 'flex-start' },
@@ -372,14 +372,7 @@ const s = StyleSheet.create({
   invalidKeyBannerText: { fontSize: 13, color: '#F97316', fontWeight: '600', textAlign: 'center' },
   errorBox: { backgroundColor: '#2A1010', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginTop: 4 },
   errorBoxText: { fontSize: 12, color: '#FF453A', fontWeight: '500' },
-  inputBar: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 100,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(0,0,0,0.95)',
-  },
+  inputBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#000' },
   inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: '#1C1C1E', borderRadius: 20, paddingLeft: 14, paddingRight: 6, paddingVertical: 6, gap: 8 },
   textInput: { flex: 1, fontSize: 14, color: '#FFFFFF', maxHeight: 120, paddingVertical: 6 },
   sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

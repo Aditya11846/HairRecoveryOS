@@ -110,7 +110,7 @@ export default function CheckIn() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >

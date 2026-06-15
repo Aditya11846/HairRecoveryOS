@@ -64,48 +64,82 @@ async function fetchClinicalTrials() {
 }
 
 async function fetchReddit() {
-  try {
-    const queries = [
-      'oral+minoxidil+results',
-      'dutasteride+regrowth',
-      'crown+aga+progress',
-      'minoxidil+shedding+phase',
-      'oral+minoxidil+side+effects',
-      'norwood+3+recovery',
-    ];
-    const seen = new Set();
-    const results = [];
+  const queries = [
+    { q: 'oral minoxidil before after results', sort: 'top', t: 'year' },
+    { q: 'dutasteride regrowth progress', sort: 'top', t: 'year' },
+    { q: 'minoxidil shedding telogen effluvium', sort: 'top', t: 'year' },
+    { q: 'crown AGA norwood regrowth', sort: 'top', t: 'all' },
+    { q: 'oral minoxidil side effects experience', sort: 'top', t: 'year' },
+    { q: 'dutasteride vs finasteride results', sort: 'top', t: 'all' },
+  ];
 
-    for (const q of queries) {
-      try {
-        const res = await fetch(
-          `https://www.reddit.com/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
-          { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
-        );
-        const data = await res.json();
-        const posts = data?.data?.children || [];
+  const seen = new Set();
+  const results = [];
 
-        for (const post of posts) {
-          const d = post.data;
-          const url = `https://reddit.com${d.permalink}`;
-          if (!seen.has(url) && d.title) {
-            seen.add(url);
-            results.push({
-              title: d.title,
-              score: d.score || 0,
-              url,
-              excerpt: (d.selftext || '').slice(0, 200),
-            });
-          }
-        }
-      } catch {}
+  for (const { q, sort, t } of queries) {
+    try {
+      const encoded = encodeURIComponent(q);
+      const url = `https://www.reddit.com/r/tressless/search.json?q=${encoded}&sort=${sort}&t=${t}&limit=8&restrict_sr=1&raw_json=1`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+          'Accept': 'application/json',
+        },
+      });
+      if (!res.ok) {
+        console.log('[Reddit] HTTP', res.status, 'for:', q);
+        continue;
+      }
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+      console.log('[Reddit]', q, '→', posts.length, 'posts');
+      for (const post of posts) {
+        const d = post?.data;
+        if (!d?.title || seen.has(d.id)) continue;
+        if (d.score < 10 && sort !== 'new') continue;
+        seen.add(d.id);
+        results.push({
+          id: d.id,
+          title: d.title,
+          score: d.score || 0,
+          url: `https://www.reddit.com${d.permalink}`,
+          excerpt: (d.selftext || '').slice(0, 400),
+          numComments: d.num_comments || 0,
+        });
+      }
+      await new Promise(r => setTimeout(r, 250));
+    } catch (e) {
+      console.log('[Reddit] error:', e.message);
     }
-
-    return results.sort((a, b) => b.score - a.score).slice(0, 10);
-  } catch (e) {
-    logger.error('Explore', 'Reddit error', e.message);
-    return [];
   }
+
+  // Fallback: fetch hot posts directly
+  try {
+    const hotRes = await fetch('https://www.reddit.com/r/tressless/hot.json?limit=20&raw_json=1', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' },
+    });
+    if (hotRes.ok) {
+      const hotData = await hotRes.json();
+      for (const post of hotData?.data?.children || []) {
+        const d = post?.data;
+        if (!d?.title || seen.has(d.id)) continue;
+        seen.add(d.id);
+        results.push({
+          id: d.id,
+          title: d.title,
+          score: d.score || 0,
+          url: `https://www.reddit.com${d.permalink}`,
+          excerpt: (d.selftext || '').slice(0, 400),
+          numComments: d.num_comments || 0,
+        });
+      }
+    }
+  } catch (e) {
+    console.log('[Reddit] hot fallback error:', e.message);
+  }
+
+  console.log('[Reddit] total unique posts:', results.length);
+  return results.sort((a, b) => b.score - a.score).slice(0, 15);
 }
 
 async function fetchDermNetNZ() {
@@ -194,21 +228,20 @@ function scoreItem(item, type) {
 }
 
 async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData, youtubeData, dermnetData) {
-  const userMsg = `Aditya's profile: 22yo male, crown AGA Norwood ~3 vertex. Protocol: oral minoxidil 2.5mg daily, Novegrow 10% solution nightly, dutasteride 0.5mg Mon+Thu. Smokes ~5 cigarettes/day. No bloodwork done. Phase 1 baseline Jun 2026. Target: 100% crown recovery by Sep 2026.
+  const userMsg = `You are analyzing hair loss research for Aditya Singh, 22, Pune, India.
+His profile: Crown AGA Norwood ~3 vertex (hairline intact). Protocol: oral minoxidil 2.5mg daily + Novegrow topical 10% solution nightly + dutasteride 0.5mg Mon+Thu. Smokes ~5 cigarettes/day. No bloodwork done. Peak result Aug 2025: 90% crown regrowth. Phase 1 baseline Jun 2026. Target: 100% crown recovery Sep 2026.
 
-Key questions he wants answered:
-- Is shedding in shower a reliable indicator of loss progression?
-- Should isotretinoin (Tretiva) be applied before minoxidil for better absorption?
-- What's the real impact of smoking on minoxidil efficacy?
+PubMed papers (${pubmedData.length}):
+${JSON.stringify(pubmedData.map(p => ({ title: p.title, journal: p.journal, pubdate: p.pubdate, url: p.url })))}
 
-PubMed papers (${pubmedData.length}): ${JSON.stringify(pubmedData.map(p => ({ title: p.title, journal: p.journal, pubdate: p.pubdate, url: p.url })))}
-Recruiting trials (${trialsData.length}): ${JSON.stringify(trialsData.map(t => ({ title: t.title, summary: t.summary, url: t.url })))}
-Reddit r/tressless (${redditData.length}): ${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, url: r.url, excerpt: r.excerpt })))}
-YouTube references (${youtubeData.length}): ${JSON.stringify(youtubeData)}
-DermNet articles (${dermnetData.length}): ${JSON.stringify(dermnetData.map(d => ({ title: d.title, url: d.url })))}
+Recruiting clinical trials (${trialsData.length}):
+${JSON.stringify(trialsData.map(t => ({ title: t.title, summary: t.summary, url: t.url })))}
 
-Analyze all data. Return the 8 MOST RELEVANT items as a JSON array. Return ONLY valid JSON, no markdown, no fences:
-[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit"|"YouTube"|"DermNet","summary":"2 sentence plain-English explanation of what this actually says","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence specific to Aditya's exact protocol","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"...","readTime":"X min read"}]`;
+Reddit r/tressless posts (${redditData.length}):
+${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, comments: r.numComments, url: r.url, excerpt: (r.excerpt || '').slice(0, 150) })))}
+
+Select the 8 MOST RELEVANT items for Aditya's exact situation. Prioritize: oral minoxidil, dutasteride, crown AGA, shedding phases, smoking impact, bloodwork. Return ONLY a valid JSON array with no markdown, no code fences, no explanation:
+[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit","summary":"2 sentence plain English summary of what this says","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence why this is specifically relevant to Aditya's protocol","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"...","readTime":"X min read"}]`;
 
   try {
     const res = await fetch(API_URL, {

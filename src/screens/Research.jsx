@@ -42,7 +42,7 @@ export default function Research() {
     if (!result || result.noApiKey) {
       setNoApiKey(true);
     } else if (result.apiError) {
-      setError(result.errorDetail || 'Claude API call failed. Try refreshing.');
+      setError(result.errorDetail || result.error || 'Network request failed — check API key and connection.');
     } else {
       setItems(result.items);
       setFetchedAt(result.fetchedAt);
@@ -79,7 +79,7 @@ export default function Research() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
     >
       <AddToProtocolSheet
