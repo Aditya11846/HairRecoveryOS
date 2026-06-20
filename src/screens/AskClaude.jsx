@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, Modal,
-  KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator,
+  Platform, StyleSheet, ActivityIndicator,
   Pressable, ScrollView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,6 +90,7 @@ export default function AskClaude() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [invalidKey, setInvalidKey] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -107,10 +108,21 @@ export default function AskClaude() {
   }, [messages, loading]);
 
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardWillShow', () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
-    });
-    return () => sub.remove();
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const openKeyModal = useCallback(() => { setShowKeyModal(true); setError(''); }, []);
@@ -180,11 +192,7 @@ export default function AskClaude() {
   const isEmpty = messages.length === 0;
 
   return (
-    <KeyboardAvoidingView
-      style={[s.root, { backgroundColor: C.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
+    <View style={[s.root, { backgroundColor: C.bg, paddingBottom: keyboardHeight > 0 ? keyboardHeight : 0 }]}>
       {/* API Key modal */}
       <Modal visible={showKeyModal} transparent animationType="slide" onRequestClose={() => setShowKeyModal(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowKeyModal(false)}>
@@ -280,6 +288,8 @@ export default function AskClaude() {
             style={s.msgFlatList}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="interactive"
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
             ListFooterComponent={
               <>
                 {loading && (
@@ -311,8 +321,10 @@ export default function AskClaude() {
         )}
       </View>
 
-      {/* Input bar */}
-      <View style={s.inputBar}>
+      {/* Input bar — root paddingBottom handles keyboard lift; this just handles tab bar clearance */}
+      <View style={[s.inputBar, {
+        paddingBottom: keyboardHeight > 0 ? 12 : insets.bottom + 90,
+      }]}>
         <View style={s.inputWrap}>
           <TextInput
             value={input}
@@ -335,7 +347,7 @@ export default function AskClaude() {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -354,11 +366,11 @@ const s = StyleSheet.create({
   introIcon: { width: 36, height: 36, backgroundColor: '#0A1628', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   introTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   introSub: { fontSize: 12, color: '#8E8E93', marginTop: 2, lineHeight: 18 },
-  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickAskGrid: { paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   quickAskBtn: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 12, width: '48%', minHeight: 52, justifyContent: 'center' },
   quickAskText: { fontSize: 12, fontWeight: '500', color: '#8E8E93', lineHeight: 16 },
   msgFlatList: { flex: 1 },
-  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 8 },
+  msgList: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20, gap: 8 },
   bubbleWrap: { marginVertical: 2 },
   bubbleRight: { alignItems: 'flex-end' },
   bubbleLeft: { alignItems: 'flex-start' },
@@ -370,7 +382,7 @@ const s = StyleSheet.create({
   invalidKeyBannerText: { fontSize: 13, color: '#F97316', fontWeight: '600', textAlign: 'center' },
   errorBox: { backgroundColor: '#2A1010', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginTop: 4 },
   errorBoxText: { fontSize: 12, color: '#FF453A', fontWeight: '500' },
-  inputBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#1C1C1E' },
+  inputBar: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#000' },
   inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: '#1C1C1E', borderRadius: 20, paddingLeft: 14, paddingRight: 6, paddingVertical: 6, gap: 8 },
   textInput: { flex: 1, fontSize: 14, color: '#FFFFFF', maxHeight: 120, paddingVertical: 6 },
   sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

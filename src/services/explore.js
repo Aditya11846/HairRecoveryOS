@@ -64,45 +64,120 @@ async function fetchClinicalTrials() {
 }
 
 async function fetchReddit() {
-  try {
-    const queries = ['oral+minoxidil+results', 'dutasteride+regrowth', 'crown+aga+progress'];
-    const seen = new Set();
-    const results = [];
+  const queries = [
+    { q: 'oral minoxidil before after results', sort: 'top', t: 'year' },
+    { q: 'dutasteride regrowth progress', sort: 'top', t: 'year' },
+    { q: 'minoxidil shedding telogen effluvium', sort: 'top', t: 'year' },
+    { q: 'crown AGA norwood regrowth', sort: 'top', t: 'all' },
+    { q: 'oral minoxidil side effects experience', sort: 'top', t: 'year' },
+    { q: 'dutasteride vs finasteride results', sort: 'top', t: 'all' },
+  ];
 
-    for (const q of queries) {
-      try {
-        const res = await fetch(
-          `https://www.reddit.com/r/tressless/search.json?q=${q}&sort=top&t=year&limit=5&restrict_sr=1`,
-          { headers: { 'User-Agent': 'HairRecoveryOS/1.0' } },
-        );
-        const data = await res.json();
-        const posts = data?.data?.children || [];
+  const seen = new Set();
+  const results = [];
 
-        for (const post of posts) {
-          const d = post.data;
-          const url = `https://reddit.com${d.permalink}`;
-          if (!seen.has(url) && d.title) {
-            seen.add(url);
-            results.push({
-              title: d.title,
-              score: d.score || 0,
-              url,
-              excerpt: (d.selftext || '').slice(0, 200),
-            });
-          }
-        }
-      } catch {}
+  for (const { q, sort, t } of queries) {
+    try {
+      const encoded = encodeURIComponent(q);
+      const url = `https://www.reddit.com/r/tressless/search.json?q=${encoded}&sort=${sort}&t=${t}&limit=8&restrict_sr=1&raw_json=1`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+          'Accept': 'application/json',
+        },
+      });
+      if (!res.ok) {
+        console.log('[Reddit] HTTP', res.status, 'for:', q);
+        continue;
+      }
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+      console.log('[Reddit]', q, '→', posts.length, 'posts');
+      for (const post of posts) {
+        const d = post?.data;
+        if (!d?.title || seen.has(d.id)) continue;
+        seen.add(d.id);
+        results.push({
+          id: d.id,
+          title: d.title,
+          score: d.score || 0,
+          url: `https://www.reddit.com${d.permalink}`,
+          excerpt: (d.selftext || '').slice(0, 400),
+          numComments: d.num_comments || 0,
+        });
+      }
+      await new Promise(r => setTimeout(r, 250));
+    } catch (e) {
+      console.log('[Reddit] error:', e.message);
     }
-
-    return results.sort((a, b) => b.score - a.score).slice(0, 10);
-  } catch (e) {
-    logger.error('Explore', 'Reddit error', e.message);
-    return [];
   }
+
+  const REDDIT_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+  const addPosts = (children) => {
+    for (const post of children || []) {
+      const d = post?.data;
+      if (!d?.title || seen.has(d.id)) continue;
+      seen.add(d.id);
+      results.push({
+        id: d.id,
+        title: d.title,
+        score: d.score || 0,
+        url: `https://www.reddit.com${d.permalink}`,
+        excerpt: (d.selftext || '').slice(0, 400),
+        numComments: d.num_comments || 0,
+      });
+    }
+  };
+
+  // Hot fallback
+  try {
+    const hotRes = await fetch('https://www.reddit.com/r/tressless/hot.json?limit=25&raw_json=1', {
+      headers: { 'User-Agent': REDDIT_UA },
+    });
+    if (hotRes.ok) addPosts((await hotRes.json())?.data?.children);
+  } catch (e) { console.log('[Reddit] hot fallback error:', e.message); }
+
+  // Top all-time fallback
+  if (results.length < 10) {
+    try {
+      const topRes = await fetch('https://www.reddit.com/r/tressless/top.json?t=year&limit=25&raw_json=1', {
+        headers: { 'User-Agent': REDDIT_UA },
+      });
+      if (topRes.ok) addPosts((await topRes.json())?.data?.children);
+    } catch (e) { console.log('[Reddit] top fallback error:', e.message); }
+  }
+
+  console.log('[Reddit] total unique posts:', results.length);
+  return results.sort((a, b) => b.score - a.score).slice(0, 15);
+}
+
+
+function scoreItem(item, type) {
+  let score = 0;
+  const text = (item.title + ' ' + (item.excerpt || '') + ' ' + (item.summary || '')).toLowerCase();
+
+  const highValue = ['oral minoxidil', 'dutasteride', 'crown', 'vertex', 'norwood', 'aga', 'androgenetic'];
+  const medValue = ['minoxidil', 'finasteride', 'dht', 'hair loss', 'regrowth', 'alopecia', 'follicle'];
+  const negValue = ['female', 'women', 'cicatricial', 'alopecia areata', 'traction'];
+
+  highValue.forEach(kw => { if (text.includes(kw)) score += 3; });
+  medValue.forEach(kw => { if (text.includes(kw)) score += 1; });
+  negValue.forEach(kw => { if (text.includes(kw)) score -= 5; });
+
+  if (type === 'pubmed' && item.pubdate) {
+    const year = parseInt(item.pubdate.slice(0, 4));
+    if (year >= 2023) score += 3;
+    else if (year >= 2021) score += 1;
+  }
+
+  if (type === 'reddit') score += Math.min(item.score / 500, 3);
+
+  return score;
 }
 
 async function analyzeWithClaude(apiKey, pubmedData, trialsData, redditData) {
-  const userMsg = `Aditya's profile: 22yo male, crown AGA Norwood ~3, on oral minoxidil 2.5mg daily + Novegrow topical 10% solution nightly + dutasteride 0.5mg Mon/Thu. Smokes ~5/day. No bloodwork yet. Phase 1 baseline Jun 2026.
+  const userMsg = `You are analyzing hair loss research for Aditya Singh, 22, Pune, India.
+His profile: Crown AGA Norwood ~3 vertex (hairline intact). Protocol: oral minoxidil 2.5mg daily + Novegrow topical 10% solution nightly + dutasteride 0.5mg Mon+Thu. Smokes ~5 cigarettes/day. No bloodwork done. Peak result Aug 2025: 90% crown regrowth. Phase 1 baseline Jun 2026. Target: 100% crown recovery Sep 2026.
 
 PubMed papers (${pubmedData.length}):
 ${JSON.stringify(pubmedData.map(p => ({ title: p.title, journal: p.journal, pubdate: p.pubdate, url: p.url })))}
@@ -111,10 +186,10 @@ Recruiting clinical trials (${trialsData.length}):
 ${JSON.stringify(trialsData.map(t => ({ title: t.title, summary: t.summary, url: t.url })))}
 
 Reddit r/tressless posts (${redditData.length}):
-${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, url: r.url })))}
+${JSON.stringify(redditData.map(r => ({ title: r.title, score: r.score, comments: r.numComments, url: r.url, excerpt: (r.excerpt || '').slice(0, 150) })))}
 
-Analyze this raw data and return the 5 MOST RELEVANT items as a JSON array. Return ONLY the JSON, no markdown, no code fences:
-[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit","summary":"2 sentences based on the actual data","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence specific to this profile","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"..."}]`;
+Select the 8 MOST RELEVANT items for Aditya's exact situation. Prioritize: oral minoxidil, dutasteride, crown AGA, shedding phases, smoking impact, bloodwork. Return ONLY a valid JSON array with no markdown, no code fences, no explanation:
+[{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit","summary":"2 sentence plain English summary of what this says","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence why this is specifically relevant to Aditya's protocol","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"...","readTime":"X min read"}]`;
 
   try {
     const res = await fetch(API_URL, {
@@ -182,13 +257,27 @@ export async function getCachedOrFreshExplore(forceRefresh = false) {
 
   logger.info('Explore', `fetched: pubmed=${pubmedData.length}, trials=${trialsData.length}, reddit=${redditData.length}`);
 
-  const sources = { pubmed: pubmedData.length, trials: trialsData.length, reddit: redditData.length };
+  // Pre-filter with relevance scoring before sending to Claude
+  const scoredPubmed = pubmedData
+    .map(p => ({ ...p, _score: scoreItem(p, 'pubmed') }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 6);
+  const scoredReddit = redditData
+    .map(r => ({ ...r, _score: scoreItem(r, 'reddit') }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 8);
+
+  const sources = {
+    pubmed: pubmedData.length,
+    trials: trialsData.length,
+    reddit: redditData.length,
+  };
 
   if (!pubmedData.length && !trialsData.length && !redditData.length) {
     return { apiError: true, errorDetail: 'All data sources failed. Check internet connection.' };
   }
 
-  const { result: items, error } = await analyzeWithClaude(apiKey, pubmedData, trialsData, redditData);
+  const { result: items, error } = await analyzeWithClaude(apiKey, scoredPubmed, trialsData, scoredReddit);
   if (!items) return { apiError: true, errorDetail: error };
 
   const fetchedAt = new Date().toISOString();

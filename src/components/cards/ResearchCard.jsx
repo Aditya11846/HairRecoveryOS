@@ -84,7 +84,19 @@ export default function ResearchCard({ item, onAddToProtocol }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 16, marginBottom: 12 },
+  card: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   badgeRow: { flexDirection: 'row', gap: 6 },
   actionChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },

@@ -229,8 +229,8 @@ async function fetchResearchWithWebSearch(apiKey) {
       return { result: null, error: `JSON parse failed: ${e.message}. Text: "${stripped.slice(0, 150)}"` };
     }
   } catch (e) {
-    logger.error('Research', 'fetch error', e.message);
-    return { result: null, error: e.message };
+    logger.error('Research', 'fetch error', e.message, e.stack);
+    return { result: null, error: `Network: ${e.message}` };
   }
 }
 

@@ -8,8 +8,207 @@ import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
 import SectionLabel from '../components/common/SectionLabel';
 import { C } from '../theme';
+import Svg, { Rect as SvgRect, Path as SvgPath, Ellipse as SvgEllipse, Circle as SvgCircle, Line as SvgLine, Text as SvgText, G } from 'react-native-svg';
 
 const PRIORITY_COLORS = { critical: C.red, positive: C.green, informational: C.accent };
+const PROTOCOL_ICONS = { oral: '💊', topical: '💧', lllt: '🔴', dutalin: '🛡️' };
+
+const EVIDENCE_LEVELS = {
+  'Very Strong — superior to finasteride in RCTs': 5,
+  'Strong — multiple RCTs': 4,
+  'Strong — FDA approved 30+ years': 4,
+  'Moderate — Hairmax RCTs': 3,
+};
+
+function EvidenceBar({ evidence }) {
+  const level = EVIDENCE_LEVELS[evidence] || 3;
+  return (
+    <View style={evb.wrap}>
+      <Text style={evb.label}>EVIDENCE STRENGTH</Text>
+      <View style={evb.row}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <View
+            key={i}
+            style={[evb.seg, { backgroundColor: i <= level ? '#39d353' : 'rgba(255,255,255,0.07)' }]}
+          />
+        ))}
+      </View>
+      <Text style={evb.sub}>{evidence}</Text>
+    </View>
+  );
+}
+const evb = StyleSheet.create({
+  wrap: { backgroundColor: '#2C2C2E', borderRadius: 12, padding: 12, marginTop: 10 },
+  label: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 7 },
+  row: { flexDirection: 'row', gap: 4, marginBottom: 6 },
+  seg: { flex: 1, height: 5, borderRadius: 3 },
+  sub: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontStyle: 'italic' },
+});
+
+const APPLICATION_GUIDES = {
+  oral: {
+    color: '#3B82F6',
+    title: 'How to take',
+    steps: [
+      { icon: '🌅', title: 'Morning with food', body: 'Take with breakfast — food reduces blood pressure side effects. Same time daily without fail.' },
+      { icon: '⏰', title: 'Missed dose?', body: 'Take as soon as remembered. If next dose is within 6 hours, skip — never double up.' },
+      { icon: '📈', title: 'What to expect', body: 'Increased shedding weeks 2–8 is normal and positive. First real regrowth visible at 3–6 months of strict consistency.' },
+    ],
+    note: 'Works systemically — affects all scalp hair, not just crown. Full effect takes 12+ months.',
+  },
+  topical: {
+    color: '#30D158',
+    title: 'How to apply Novegrow 10% solution',
+    steps: [
+      { icon: '💧', title: 'Dropper only, NOT spray', body: 'Dropper delivers precise 1mL to the scalp. Spray disperses product to hair shaft where it does nothing. Use dropper.' },
+      { icon: '🦱', title: 'Part hair first', body: 'Part hair to expose scalp directly. Apply drops to the exposed scalp, not the hair. 4–5 drops across the crown patch.' },
+      { icon: '👆', title: "Tap, don't rub", body: 'Light fingertip tapping to spread. Rubbing moves product off scalp onto surrounding hair. Tap gently and let absorb.' },
+      { icon: '🌙', title: 'Bedtime = best time', body: 'Must stay on scalp for minimum 4 hours. No washing, no heavy sweating, no helmet. Sleep locks in absorption.' },
+    ],
+    note: '⚡ Research tip: Tretinoin 0.025% cream applied 30–60 min before minoxidil increases absorption ~33%. Ask Dr. Soni about adding this.',
+  },
+  lllt: {
+    color: '#FF453A',
+    title: 'How to use red light comb',
+    steps: [
+      { icon: '💆', title: 'Dry hair only', body: 'Water absorbs 650nm light before it reaches follicles. Completely dry hair and scalp before every session.' },
+      { icon: '⏱️', title: '4 seconds per section', body: 'Slow, deliberate passes. Hold comb stationary for 4 seconds in each position. Count it out — most people go too fast.' },
+      { icon: '🎯', title: 'Crown focus', body: 'Start at the crown patch edge and work inward in a grid pattern. 15 min total on the vertex — not spread across whole head.' },
+      { icon: '📅', title: 'Mon / Wed / Fri', body: 'Three sessions per week. Follicles need 48h recovery between photobiomodulation sessions. Daily use reduces effectiveness.' },
+    ],
+    note: '650nm light increases ATP in follicle mitochondria — literally energises the hair growth machinery. Consistent rhythm matters more than duration.',
+  },
+  dutalin: {
+    color: '#A855F7',
+    title: 'How to take dutasteride',
+    steps: [
+      { icon: '📅', title: 'Monday + Thursday only', body: 'Twice weekly is evidence-based. Dutasteride half-life is ~5 weeks — it accumulates. Daily dosing is unnecessary.' },
+      { icon: '🕐', title: 'Consistent timing', body: 'Same time of day on dose days. With or without food — no interaction. Set a phone alarm for both days.' },
+      { icon: '🚫', title: 'Never double up', body: "Missed a dose? Skip it completely. The 5-week half-life means one missed dose is clinically irrelevant — just continue normal schedule." },
+      { icon: '🔬', title: 'Bloodwork note', body: "Dutasteride lowers PSA readings. If ever getting PSA tested, inform the doctor you're on dutasteride — results need adjustment." },
+    ],
+    note: 'DHT suppression: dutasteride ~90%, finasteride ~70%. Full miniaturization reversal takes 12–18 months. Do not switch or stop early.',
+  },
+};
+
+function ApplicationGuide({ id }) {
+  const guide = APPLICATION_GUIDES[id];
+  if (!guide) return null;
+  return (
+    <View style={[apg.wrap, { borderLeftColor: guide.color }]}>
+      <Text style={[apg.title, { color: guide.color }]}>{guide.title}</Text>
+      {guide.steps.map((step, i) => (
+        <View key={i} style={apg.step}>
+          <Text style={apg.icon}>{step.icon}</Text>
+          <View style={apg.textBlock}>
+            <Text style={apg.stepTitle}>{step.title}</Text>
+            <Text style={apg.stepBody}>{step.body}</Text>
+          </View>
+        </View>
+      ))}
+      <View style={apg.noteBox}>
+        <Text style={apg.noteText}>{guide.note}</Text>
+      </View>
+    </View>
+  );
+}
+const apg = StyleSheet.create({
+  wrap: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 12, padding: 14, marginTop: 10, borderLeftWidth: 3,
+  },
+  title: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1, marginBottom: 12 },
+  step: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'flex-start' },
+  icon: { fontSize: 18, width: 24, textAlign: 'center', marginTop: 1 },
+  textBlock: { flex: 1 },
+  stepTitle: { fontSize: 12, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  stepBody: { fontSize: 12, color: 'rgba(255,255,255,0.58)', lineHeight: 17 },
+  noteBox: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, marginTop: 4 },
+  noteText: { fontSize: 11, color: 'rgba(255,255,255,0.42)', lineHeight: 16, fontStyle: 'italic' },
+});
+
+function ScalpDiagram() {
+  const W = 220;
+  const H = 260;
+  return (
+    <View style={hd.wrap}>
+      <Text style={hd.heading}>WHERE TO APPLY</Text>
+      <View style={hd.svgWrap}>
+        <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          {/* Head outline */}
+          <SvgEllipse cx={110} cy={112} rx={80} ry={94} fill="#1A1A1C" stroke="#3A3A3C" strokeWidth={1.5} />
+          {/* Scalp top area */}
+          <SvgEllipse cx={110} cy={104} rx={63} ry={72} fill="rgba(59,130,246,0.07)" />
+
+          {/* Ear bumps */}
+          <SvgEllipse cx={33} cy={118} rx={9} ry={14} fill="#242426" stroke="#3A3A3C" strokeWidth={1} />
+          <SvgEllipse cx={187} cy={118} rx={9} ry={14} fill="#242426" stroke="#3A3A3C" strokeWidth={1} />
+
+          {/* Topical zone: crown + temples */}
+          <SvgEllipse cx={110} cy={100} rx={44} ry={50} fill="rgba(57,211,83,0.10)" />
+
+          {/* Temple zones */}
+          <SvgEllipse cx={72} cy={72} rx={20} ry={14} fill="rgba(57,211,83,0.13)" />
+          <SvgEllipse cx={148} cy={72} rx={20} ry={14} fill="rgba(57,211,83,0.13)" />
+
+          {/* Crown / LLLT focus zone */}
+          <SvgCircle cx={110} cy={104} r={26} fill="rgba(255,69,58,0.13)" />
+          <SvgCircle cx={110} cy={104} r={14} fill="rgba(255,69,58,0.18)" />
+
+          {/* Front hairline arc */}
+          <SvgPath d="M 67 58 Q 110 32 153 58" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
+
+          {/* Zone labels */}
+          <SvgText x={110} y={94} textAnchor="middle" fill="rgba(255,69,58,0.9)" fontSize={8} fontWeight="700">LLLT</SvgText>
+          <SvgText x={110} y={104} textAnchor="middle" fill="rgba(57,211,83,0.9)" fontSize={7} fontWeight="700">CROWN</SvgText>
+          <SvgText x={110} y={113} textAnchor="middle" fill="rgba(57,211,83,0.7)" fontSize={6}>TOPICAL</SvgText>
+
+          <SvgText x={72} y={71} textAnchor="middle" fill="rgba(57,211,83,0.8)" fontSize={6} fontWeight="700">L TEMPLE</SvgText>
+          <SvgText x={148} y={71} textAnchor="middle" fill="rgba(57,211,83,0.8)" fontSize={6} fontWeight="700">R TEMPLE</SvgText>
+
+          {/* Hairline label */}
+          <SvgText x={110} y={46} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize={6}>HAIRLINE</SvgText>
+
+          {/* Systemic label (whole scalp) */}
+          <SvgText x={110} y={155} textAnchor="middle" fill="rgba(59,130,246,0.5)" fontSize={6.5}>whole scalp (systemic)</SvgText>
+
+          {/* Legend row */}
+          <G transform="translate(12, 218)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(255,69,58,0.25)" stroke="#FF453A" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>LLLT — Crown focus</SvgText>
+          </G>
+          <G transform="translate(12, 234)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(57,211,83,0.25)" stroke="#39d353" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>Topical — Crown + temples</SvgText>
+          </G>
+          <G transform="translate(118, 218)">
+            <SvgCircle cx={7} cy={7} r={6} fill="rgba(59,130,246,0.25)" stroke="#3B82F6" strokeWidth={1} />
+            <SvgText x={16} y={11} fill="rgba(255,255,255,0.6)" fontSize={9}>Oral + Dut — Systemic</SvgText>
+          </G>
+        </Svg>
+      </View>
+      <View style={hd.tipsRow}>
+        <View style={hd.tip}>
+          <Text style={hd.tipIcon}>💧</Text>
+          <Text style={hd.tipText}>Part hair, apply dropper to scalp — NOT hair shaft</Text>
+        </View>
+        <View style={hd.tip}>
+          <Text style={hd.tipIcon}>🔴</Text>
+          <Text style={hd.tipText}>LLLT: 4 sec/section, grid pattern, crown inward</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+const hd = StyleSheet.create({
+  wrap: { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
+  heading: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 10 },
+  svgWrap: { alignItems: 'center', marginBottom: 12 },
+  tipsRow: { gap: 8 },
+  tip: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  tipIcon: { fontSize: 15, width: 22, textAlign: 'center' },
+  tipText: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 17 },
+});
 
 function StatCard({ label, value, unit, valueColor = C.text, sub }) {
   return (
@@ -26,7 +225,7 @@ function StatCard({ label, value, unit, valueColor = C.text, sub }) {
 function InsightCard({ insight }) {
   const color = PRIORITY_COLORS[insight.priority] || C.accent;
   return (
-    <View style={[s.insightCard, { borderLeftColor: color }]}>
+    <View style={[s.insightCard, { borderLeftColor: color, shadowColor: color }]}>
       <View style={s.insightHeader}>
         <View style={[s.insightDot, { backgroundColor: color }]} />
         <Text style={s.insightTitle}>{insight.title}</Text>
@@ -90,7 +289,7 @@ export default function Overview() {
       setRecent(rec14.slice(0, 7));
       setProtocolDone(pd);
       loadInsights(rec14, str);
-    });
+    }).catch(() => {});
   }, []);
 
   const loadInsights = async (recent14, str) => {
@@ -140,7 +339,7 @@ export default function Overview() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
     >
       <View style={s.header}>
@@ -217,6 +416,7 @@ export default function Overview() {
       {/* Protocol guide */}
       <View style={s.section}>
         <SectionLabel label="Protocol Guide" />
+        <ScalpDiagram />
         <View style={s.cardList}>
           {PROTOCOL_DETAILS.map((item, idx) => {
             const isOpen = openProtocol === item.id;
@@ -228,7 +428,9 @@ export default function Overview() {
                   activeOpacity={0.7}
                 >
                   <View style={s.accordionLeft}>
-                    <View style={[s.statusDot, { backgroundColor: C.green }]} />
+                    <View style={s.protoIconBubble}>
+                      <Text style={s.protoIconText}>{PROTOCOL_ICONS[item.id] || '●'}</Text>
+                    </View>
                     <View>
                       <Text style={s.accordionTitle}>{item.name}</Text>
                       <Text style={s.accordionDose}>{item.dose}</Text>
@@ -241,12 +443,16 @@ export default function Overview() {
                 </TouchableOpacity>
                 {isOpen && (
                   <View style={s.accordionBody}>
-                    {[['Timing', item.timing], ['Evidence', item.evidence], ['Notes', item.notes]].map(([k, v]) => (
-                      <View key={k} style={s.detailRow}>
-                        <Text style={s.detailKey}>{k}</Text>
-                        <Text style={s.detailVal}>{v}</Text>
-                      </View>
-                    ))}
+                    <View style={s.detailRow}>
+                      <Text style={s.detailKey}>Timing</Text>
+                      <Text style={s.detailVal}>{item.timing}</Text>
+                    </View>
+                    <View style={s.detailRow}>
+                      <Text style={s.detailKey}>Notes</Text>
+                      <Text style={s.detailVal}>{item.notes}</Text>
+                    </View>
+                    <EvidenceBar evidence={item.evidence} />
+                    <ApplicationGuide id={item.id} />
                   </View>
                 )}
               </View>
@@ -261,6 +467,10 @@ export default function Overview() {
           </Text>
         </View>
       </View>
+
+      <View style={s.poweredBy}>
+        <Text style={s.poweredByText}>Powered by React Native · HairOS v1.0</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -270,12 +480,37 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { marginBottom: 24 },
   dateLabel: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
-  title: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 40, marginTop: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8, lineHeight: 40, marginTop: 2 },
   section: { marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
-  card: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  card: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  statCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, width: '47.5%', minHeight: 100 },
+  statCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 14,
+    width: '47.5%',
+    minHeight: 100,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.13)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
   statLabel: { fontSize: 10, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 6 },
   statValue: { fontSize: 32, fontWeight: '700', color: '#FFFFFF', lineHeight: 36 },
   statUnit: { fontSize: 16, fontWeight: '600', color: '#8E8E93' },
@@ -285,18 +520,35 @@ const s = StyleSheet.create({
   avgValue: { fontSize: 22, fontWeight: '700' },
   avgLabel: { fontSize: 10, fontWeight: '500', color: '#8E8E93', marginTop: 2 },
   avgDivider: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: '#2C2C2E' },
-  insightsLoading: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  insightsLoading: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   insightsLoadingText: { fontSize: 14, color: '#8E8E93' },
-  insightPlaceholder: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16 },
+  insightPlaceholder: {
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   insightPlaceholderText: { fontSize: 14, color: '#8E8E93', lineHeight: 20 },
-  insightCard: { backgroundColor: '#1C1C1E', borderRadius: 12, padding: 16, borderLeftWidth: 3, marginBottom: 8 },
+  insightCard: {
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
+    borderLeftWidth: 3, marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   insightDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   insightTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', flex: 1 },
   insightBody: { fontSize: 13, color: '#8E8E93', lineHeight: 19 },
   updatedLabel: { fontSize: 11, color: '#3A3A3C', marginTop: 4, paddingHorizontal: 4 },
   cardList: {},
-  accordionCard: { backgroundColor: '#1C1C1E', borderRadius: 12, overflow: 'hidden' },
+  accordionCard: {
+    backgroundColor: '#1C1C1E', borderRadius: 16, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
+  },
   cardMarginTop: { marginTop: 8 },
   accordionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, minHeight: 56 },
   accordionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
@@ -312,7 +564,25 @@ const s = StyleSheet.create({
   detailRow: { flexDirection: 'row', gap: 12 },
   detailKey: { fontSize: 12, color: '#8E8E93', width: 64, flexShrink: 0 },
   detailVal: { fontSize: 14, color: '#FFFFFF', flex: 1, lineHeight: 20 },
-  bloodworkCard: { marginTop: 8, backgroundColor: '#1C1E2A', borderRadius: 12, padding: 16 },
+  bloodworkCard: { marginTop: 8, backgroundColor: '#1C1E2A', borderRadius: 16, padding: 16 },
   bloodworkTitle: { fontSize: 10, fontWeight: '700', color: '#3B82F6', letterSpacing: 0.8, marginBottom: 6 },
   bloodworkText: { fontSize: 12, color: '#8E8E93', lineHeight: 18 },
+  protocolIconBubble: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#2C2C2E', alignItems: 'center', justifyContent: 'center' },
+  protocolIconText: { fontSize: 18 },
+  protoIconBubble: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginRight: 4,
+  },
+  protoIconText: { fontSize: 20 },
+  evidenceContainer: { marginTop: 8 },
+  evidenceLabel: { fontSize: 10, fontWeight: '700', color: '#8E8E93', letterSpacing: 0.5, marginBottom: 5 },
+  evidenceBarRow: { flexDirection: 'row', gap: 3, marginBottom: 4 },
+  evidenceSegment: { flex: 1, height: 4, borderRadius: 2 },
+  evidenceText: { fontSize: 11, color: '#8E8E93', fontStyle: 'italic' },
+  poweredBy: { alignItems: 'center', marginTop: 24, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#1C1C1E' },
+  poweredByText: { fontSize: 11, color: '#3A3A3C', letterSpacing: 0.3 },
 });

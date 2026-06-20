@@ -91,7 +91,7 @@ export default function CheckIn() {
       if (existing) { setForm(existing); setHadPrior(true); }
       setCustomProtocols(protocols.filter(p => p.active));
       if (existing?.customValues) setCustomValues(existing.customValues);
-    });
+    }).catch(() => {});
   }, [today]);
 
   const field = key => val => { setForm(f => ({ ...f, [key]: val })); setSaved(false); };
@@ -110,7 +110,7 @@ export default function CheckIn() {
   return (
     <ScrollView
       style={[s.container, { backgroundColor: C.bg }]}
-      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
