@@ -5,7 +5,7 @@ export const C = {
   card2: '#2C2C2E',
 
   // Liquid glass surfaces
-  glass: 'rgba(28, 28, 30, 0.85)',
+  glass: '#1C1C1E',
   glassBorder: 'rgba(255, 255, 255, 0.08)',
   glassBorderStrong: 'rgba(255, 255, 255, 0.14)',
 

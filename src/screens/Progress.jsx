@@ -462,7 +462,7 @@ const s = StyleSheet.create({
   section: { marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
   card: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,

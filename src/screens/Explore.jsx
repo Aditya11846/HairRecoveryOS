@@ -406,7 +406,7 @@ const s = StyleSheet.create({
   filterTabText: { fontSize: 13, fontWeight: '600', color: '#8E8E93' },
   filterTabTextActive: { color: '#FFFFFF' },
   pinnedCard: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     marginBottom: 10,
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
   expandChevron: { fontSize: 10, color: '#8E8E93', marginTop: 4 },
   pinnedAnswer: { fontSize: 13, color: '#8E8E93', lineHeight: 20, marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#2C2C2E' },
   card: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     marginBottom: 10,
@@ -448,7 +448,7 @@ const s = StyleSheet.create({
   cardSummary: { fontSize: 13, color: '#8E8E93', lineHeight: 19 },
   cardExpanded: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#2C2C2E', gap: 10 },
   relevanceReasonBox: {
-    backgroundColor: 'rgba(44, 44, 46, 0.8)',
+    backgroundColor: '#2C2C2E',
     borderRadius: 10,
     padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
@@ -473,7 +473,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   emptyBody: { fontSize: 14, color: '#8E8E93', textAlign: 'center', lineHeight: 20 },
   errorBox: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     gap: 12,

@@ -85,7 +85,7 @@ export default function ResearchCard({ item, onAddToProtocol }) {
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,

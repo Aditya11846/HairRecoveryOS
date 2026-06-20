@@ -192,7 +192,7 @@ export default function AskClaude() {
   const isEmpty = messages.length === 0;
 
   return (
-    <View style={[s.root, { backgroundColor: C.bg }]}>
+    <View style={[s.root, { backgroundColor: C.bg, paddingBottom: keyboardHeight > 0 ? keyboardHeight : 0 }]}>
       {/* API Key modal */}
       <Modal visible={showKeyModal} transparent animationType="slide" onRequestClose={() => setShowKeyModal(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowKeyModal(false)}>
@@ -321,10 +321,9 @@ export default function AskClaude() {
         )}
       </View>
 
-      {/* Input bar — marginBottom lifts it by exact keyboard height; paddingBottom clears tab bar when closed */}
+      {/* Input bar — root paddingBottom handles keyboard lift; this just handles tab bar clearance */}
       <View style={[s.inputBar, {
         paddingBottom: keyboardHeight > 0 ? 12 : insets.bottom + 90,
-        marginBottom: keyboardHeight > 0 ? keyboardHeight : 0,
       }]}>
         <View style={s.inputWrap}>
           <TextInput

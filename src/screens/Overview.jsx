@@ -484,7 +484,7 @@ const s = StyleSheet.create({
   section: { marginBottom: 24 },
   sectionLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 4 },
   card: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
@@ -522,17 +522,17 @@ const s = StyleSheet.create({
   avgDivider: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: '#2C2C2E' },
   insightsLoading: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
   },
   insightsLoadingText: { fontSize: 14, color: '#8E8E93' },
   insightPlaceholder: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
   },
   insightPlaceholderText: { fontSize: 14, color: '#8E8E93', lineHeight: 20 },
   insightCard: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, padding: 16,
+    backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16,
     borderLeftWidth: 3, marginBottom: 8,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
     shadowOffset: { width: -2, height: 0 },
@@ -546,7 +546,7 @@ const s = StyleSheet.create({
   updatedLabel: { fontSize: 11, color: '#3A3A3C', marginTop: 4, paddingHorizontal: 4 },
   cardList: {},
   accordionCard: {
-    backgroundColor: 'rgba(28, 28, 30, 0.9)', borderRadius: 16, overflow: 'hidden',
+    backgroundColor: '#1C1C1E', borderRadius: 16, overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
   },
   cardMarginTop: { marginTop: 8 },
