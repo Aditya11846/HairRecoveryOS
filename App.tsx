@@ -143,12 +143,10 @@ function CustomTabBar({ state, navigation }: any) {
   const safeBottom = Math.max(insets.bottom, 16);
   return (
     <View style={[tb.wrapper, { paddingBottom: safeBottom }]} pointerEvents="box-none">
-      <View style={tb.bg} pointerEvents="none" />
       <View style={tb.border} pointerEvents="none" />
       <View style={tb.row}>
         {TABS.map((tab, i) => {
           const focused = state.index === i;
-          const color = focused ? '#3B82F6' : 'rgba(180,180,185,0.85)';
           return (
             <Pressable
               key={tab.name}
@@ -156,10 +154,17 @@ function CustomTabBar({ state, navigation }: any) {
               onPress={() => navigation.navigate(tab.name)}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
-              <View style={[tb.pill, focused && tb.pillActive]}>
-                <tab.Icon color={color} focused={focused} />
-              </View>
-              <Text style={[tb.label, { color }]}>{tab.label}</Text>
+              {focused ? (
+                <View style={tb.activePill}>
+                  <tab.Icon color="#3B82F6" focused={true} />
+                  <Text style={tb.activeLabel}>{tab.label}</Text>
+                </View>
+              ) : (
+                <>
+                  <tab.Icon color="rgba(180,180,185,0.85)" focused={false} />
+                  <Text style={tb.inactiveLabel}>{tab.label}</Text>
+                </>
+              )}
             </Pressable>
           );
         })}
@@ -168,14 +173,30 @@ function CustomTabBar({ state, navigation }: any) {
   );
 }
 const tb = StyleSheet.create({
-  wrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000, elevation: 1000 },
-  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0A0A0C' },
-  border: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)' },
-  row: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 4 },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 50 },
-  pill: { width: 42, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
-  pillActive: { backgroundColor: 'rgba(59,130,246,0.18)' },
-  label: { fontSize: 10, fontWeight: '600', letterSpacing: -0.1, textAlign: 'center' },
+  wrapper: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    zIndex: 1000, elevation: 1000,
+    backgroundColor: '#000000',
+  },
+  border: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  row: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 6 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 54 },
+  activePill: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1C1C1E',
+    borderRadius: 14,
+    paddingVertical: 8,
+    marginHorizontal: 3,
+    gap: 3,
+  },
+  activeLabel: { fontSize: 10, fontWeight: '700', color: '#3B82F6', letterSpacing: -0.2, textAlign: 'center' },
+  inactiveLabel: { fontSize: 10, fontWeight: '500', color: 'rgba(180,180,185,0.85)', textAlign: 'center', marginTop: 3 },
 });
 
 export default function App() {
