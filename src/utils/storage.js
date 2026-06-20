@@ -246,6 +246,32 @@ export const isProtocolAdded = async (name) => {
   return protocols.some(p => p.name.toLowerCase() === name.toLowerCase() && p.active);
 };
 
+export const removeCustomProtocol = async (id) => {
+  const existing = await getCustomProtocols();
+  const updated = existing.filter(p => p.id !== id);
+  await AsyncStorage.setItem(CUSTOM_PROTOCOLS_KEY, JSON.stringify(updated));
+};
+
+const PROTOCOL_GUIDES_KEY = `${PREFIX}protocol_guides`;
+
+export const saveProtocolGuide = async (name, guide) => {
+  try {
+    const raw = await AsyncStorage.getItem(PROTOCOL_GUIDES_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[name.toLowerCase()] = guide;
+    await AsyncStorage.setItem(PROTOCOL_GUIDES_KEY, JSON.stringify(all));
+  } catch {}
+};
+
+export const getProtocolGuide = async (name) => {
+  try {
+    const raw = await AsyncStorage.getItem(PROTOCOL_GUIDES_KEY);
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    return all[name.toLowerCase()] || null;
+  } catch { return null; }
+};
+
 // ─── Generic KV ───────────────────────────────────────────────────────────────
 
 export const get = async (key, fallback = null) => {

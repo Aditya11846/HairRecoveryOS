@@ -1,4 +1,4 @@
-import { get, set } from '../utils/storage';
+import { get, set, saveProtocolGuide } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { MODEL, RESEARCH_CACHE_TTL_MS } from '../constants/config';
 import { logger } from '../utils/logger';
@@ -290,4 +290,109 @@ export async function getCachedOrFreshResearch(forceRefresh = false) {
   supabase.from('research_cache').insert({ items }).catch(() => {});
 
   return { items, fetchedAt, fromCache: false };
+}
+
+// ─── Feature 3: Protocol Guide (web search for usage info) ───────────────────
+
+const PROTOCOL_SUGGESTIONS_CACHE_KEY = 'protocol_suggestions_cache';
+const SUGGESTIONS_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function callClaudeWebSearchObject(apiKey, userMsg, maxTokens = 1500) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: HEADERS(apiKey),
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: maxTokens,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userMsg }],
+      }),
+    });
+    const rawBody = await res.text();
+    if (!res.ok) return { result: null, error: `HTTP ${res.status}` };
+    let data;
+    try { data = JSON.parse(rawBody); } catch (e) { return { result: null, error: e.message }; }
+    const textBlocks = (data.content || []).filter(b => b.type === 'text');
+    const finalText = textBlocks.length > 0 ? textBlocks[textBlocks.length - 1].text : '';
+    if (!finalText) return { result: null, error: 'No text block' };
+    const stripped = finalText.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
+    // Try object first, then array
+    const objMatch = stripped.match(/\{[\s\S]*\}/);
+    const arrMatch = stripped.match(/\[[\s\S]*\]/);
+    const match = objMatch || arrMatch;
+    if (!match) return { result: null, error: `No JSON in response: "${stripped.slice(0, 200)}"` };
+    try { return { result: JSON.parse(match[0]), error: null }; }
+    catch (e) { return { result: null, error: e.message }; }
+  } catch (e) {
+    return { result: null, error: e.message };
+  }
+}
+
+export async function fetchProtocolGuide(protocolName) {
+  const apiKey = await get('api_key', '');
+  if (!apiKey) return null;
+
+  const msg = `Search the web for evidence-based information about "${protocolName}" as a treatment for androgenetic alopecia (male pattern hair loss).
+
+Return ONLY a JSON object (no markdown, no code fences):
+{
+  "mechanism": "how it works for hair loss in 1-2 sentences",
+  "dose": "recommended dose or amount",
+  "timing": "when and how often to use",
+  "evidence": "evidence level — e.g. Strong RCTs / Moderate / Anecdotal",
+  "caution": "key safety note or side effect warning",
+  "steps": [
+    {"icon": "emoji", "title": "step title", "body": "step detail"}
+  ],
+  "note": "one additional practical tip"
+}
+
+steps should have 3-4 items covering how to use it correctly. Use simple emojis for icons.`;
+
+  const { result } = await callClaudeWebSearchObject(apiKey, msg, 1500);
+  return result && typeof result === 'object' && !Array.isArray(result) ? result : null;
+}
+
+export async function getSuggestedProtocols() {
+  const apiKey = await get('api_key', '');
+  if (!apiKey) return [];
+
+  // Check cache
+  try {
+    const cached = await get(PROTOCOL_SUGGESTIONS_CACHE_KEY, null);
+    if (cached?.fetchedAt && cached?.items) {
+      const age = Date.now() - new Date(cached.fetchedAt).getTime();
+      if (age < SUGGESTIONS_TTL_MS) return cached.items;
+    }
+  } catch {}
+
+  const msg = `Search the web for evidence-backed hair loss treatments that would complement this existing protocol for Aditya Singh (22yo male, androgenetic alopecia, crown-dominant Norwood ~3 vertex, Pune India):
+
+CURRENT PROTOCOL:
+- Oral Minoxidil 2.5mg daily
+- Novegrow Topical 10% solution nightly
+- Dutasteride 0.5mg Mon+Thu
+- Red Light Comb (LLLT) 3x/week
+
+Find 5 evidence-backed additions NOT already in this protocol. Return ONLY a JSON array (no markdown):
+[{
+  "name": "protocol name",
+  "category": "Topical"|"Supplement"|"Procedure"|"Device"|"Lifestyle",
+  "evidence": "one-line evidence summary",
+  "whyRelevant": "why this specifically helps with crown AGA on this protocol",
+  "caution": "key warning or contraindication",
+  "canAddToProtocol": true
+}]
+
+Focus on: microneedling, supplements (biotin, zinc, saw palmetto, etc), tretinoin, ketoconazole shampoo, or other validated additions. Be specific to 2026 evidence.`;
+
+  const { result } = await callClaudeWebSearchObject(apiKey, msg, 1500);
+  const items = Array.isArray(result) ? result : [];
+
+  if (items.length > 0) {
+    set(PROTOCOL_SUGGESTIONS_CACHE_KEY, { items, fetchedAt: new Date().toISOString() }).catch(() => {});
+  }
+
+  return items;
 }
