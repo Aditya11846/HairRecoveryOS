@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, Modal,
-  KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator,
+  Platform, StyleSheet, ActivityIndicator,
   Pressable, ScrollView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,6 +90,7 @@ export default function AskClaude() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [invalidKey, setInvalidKey] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -107,10 +108,21 @@ export default function AskClaude() {
   }, [messages, loading]);
 
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardWillShow', () => {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
-    });
-    return () => sub.remove();
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   const openKeyModal = useCallback(() => { setShowKeyModal(true); setError(''); }, []);
@@ -180,11 +192,7 @@ export default function AskClaude() {
   const isEmpty = messages.length === 0;
 
   return (
-    <KeyboardAvoidingView
-      style={[s.root, { backgroundColor: C.bg, marginBottom: insets.bottom + 60 }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
-    >
+    <View style={[s.root, { backgroundColor: C.bg }]}>
       {/* API Key modal */}
       <Modal visible={showKeyModal} transparent animationType="slide" onRequestClose={() => setShowKeyModal(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowKeyModal(false)}>
@@ -313,8 +321,8 @@ export default function AskClaude() {
         )}
       </View>
 
-      {/* Input bar */}
-      <View style={s.inputBar}>
+      {/* Input bar — only this element shifts when keyboard opens */}
+      <View style={[s.inputBar, { paddingBottom: keyboardHeight > 0 ? keyboardHeight - insets.bottom + 12 : insets.bottom + 90 }]}>
         <View style={s.inputWrap}>
           <TextInput
             value={input}
@@ -337,7 +345,7 @@ export default function AskClaude() {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -372,7 +380,7 @@ const s = StyleSheet.create({
   invalidKeyBannerText: { fontSize: 13, color: '#F97316', fontWeight: '600', textAlign: 'center' },
   errorBox: { backgroundColor: '#2A1010', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginTop: 4 },
   errorBoxText: { fontSize: 12, color: '#FF453A', fontWeight: '500' },
-  inputBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#000' },
+  inputBar: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: '#000' },
   inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: '#1C1C1E', borderRadius: 20, paddingLeft: 14, paddingRight: 6, paddingVertical: 6, gap: 8 },
   textInput: { flex: 1, fontSize: 14, color: '#FFFFFF', maxHeight: 120, paddingVertical: 6 },
   sendBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

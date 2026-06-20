@@ -139,9 +139,9 @@ function CustomTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(insets.bottom, 16);
   return (
-    <View style={[tb.wrapper, { paddingBottom: safeBottom }]}>
-      <View style={tb.bg} />
-      <View style={tb.border} />
+    <View style={[tb.wrapper, { paddingBottom: safeBottom }]} pointerEvents="box-none">
+      <View style={tb.bg} pointerEvents="none" />
+      <View style={tb.border} pointerEvents="none" />
       <View style={tb.row}>
         {TABS.map((tab, i) => {
           const focused = state.index === i;
@@ -165,8 +165,8 @@ function CustomTabBar({ state, navigation }: any) {
   );
 }
 const tb = StyleSheet.create({
-  wrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100 },
-  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000' },
+  wrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000, elevation: 1000 },
+  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,8,0.93)' },
   border: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.10)' },
   row: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 4 },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 48 },
