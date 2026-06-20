@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { getTodayKey, getStreakCount, getRecentCheckins, loadCheckin, daysToCheckpoint, get, set } from '../utils/storage';
 import { getCachedOrFreshInsights } from '../services/ai';
 import { PROTOCOL_DETAILS } from '../constants/protocol';
@@ -276,21 +277,23 @@ export default function Overview() {
   const [noApiKey, setNoApiKey] = useState(false);
   const insightsFetched = useRef('');
 
-  useEffect(() => {
-    const todayKey = getTodayKey();
-    Promise.all([
-      loadCheckin(todayKey),
-      getStreakCount(),
-      getRecentCheckins(14),
-      get(`protocol_today_${todayKey}`, {}),
-    ]).then(([ci, str, rec14, pd]) => {
-      setTodayCI(ci);
-      setStreak(str);
-      setRecent(rec14.slice(0, 7));
-      setProtocolDone(pd);
-      loadInsights(rec14, str);
-    }).catch(() => {});
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const todayKey = getTodayKey();
+      Promise.all([
+        loadCheckin(todayKey),
+        getStreakCount(),
+        getRecentCheckins(14),
+        get(`protocol_today_${todayKey}`, {}),
+      ]).then(([ci, str, rec14, pd]) => {
+        setTodayCI(ci);
+        setStreak(str);
+        setRecent(rec14.slice(0, 7));
+        setProtocolDone(pd);
+        loadInsights(rec14, str);
+      }).catch(() => {});
+    }, [])
+  );
 
   const loadInsights = async (recent14, str) => {
     const todayStr = getTodayKey();

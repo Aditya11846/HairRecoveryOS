@@ -57,7 +57,7 @@ async function buildContext() {
   const lines = ['\n\n[TRACKED DATA FROM APP]'];
   lines.push(`Streak: ${streak} days`);
   if (today) {
-    lines.push(`Today: oral=${today.oralMinoxidil ? 'yes' : today.oralMinoxidil === false ? 'no' : '?'}, topical=${today.topicalMinoxidil ? 'yes' : today.topicalMinoxidil === false ? 'no' : '?'}, cigs=${today.cigarettes ?? '?'}, sleep=${today.sleep ?? '?'}h, stress=${today.stress ?? '?'}/10, shedding=${today.sheddingNoticed === true ? 'yes' : today.sheddingNoticed === false ? 'no' : '?'}`);
+    lines.push(`Today: oral=${today.oralMinoxidil ? 'yes' : today.oralMinoxidil === false ? 'no' : '?'}, topical=${today.topicalMinoxidil ? 'yes' : today.topicalMinoxidil === false ? 'no' : '?'}, cigs=${today.cigarettes ?? '?'}, sleep=${today.sleep ?? '?'}h, stress=${today.stress ?? '?'}/10, shedding=${today.sheddingNoticed === 'none' || today.sheddingNoticed === false ? 'none' : today.sheddingNoticed === 'light' || today.sheddingNoticed === true ? 'light' : today.sheddingNoticed === 'heavy' ? 'heavy' : '?'}`);
   }
   if (recent.length > 1) {
     const avgCigs = (recent.reduce((s, c) => s + (c.cigarettes || 0), 0) / recent.length).toFixed(1);

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
   Modal, Pressable,
 } from 'react-native';
 import Svg, { Path, Line as SvgLine, Text as SvgText, Circle, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { getLast30Days, getLastNDays, getStreakCount, get, set } from '../utils/storage';
 import { TIMELINE, PHASE1_OBJECTIVES } from '../constants/timeline';
 import SectionLabel from '../components/common/SectionLabel';
@@ -257,17 +258,19 @@ export default function Progress() {
   const [showModal, setShowModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  useEffect(() => {
-    Promise.all([getLast30Days(), getLastNDays(84), getStreakCount(), get('phase1', {})]).then(([d, hd, str, ph]) => {
-      setDays(d);
-      setHeatmapDays(hd);
-      setStreak(str);
-      setWeeks(getWeeklyData(d));
-      const derivedPh = str >= 30 ? { ...ph, streak30: true } : ph;
-      if (str >= 30 && !ph.streak30) set('phase1', derivedPh);
-      setPhase1(derivedPh);
-    }).catch(() => {});
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      Promise.all([getLast30Days(), getLastNDays(84), getStreakCount(), get('phase1', {})]).then(([d, hd, str, ph]) => {
+        setDays(d);
+        setHeatmapDays(hd);
+        setStreak(str);
+        setWeeks(getWeeklyData(d));
+        const derivedPh = str >= 30 ? { ...ph, streak30: true } : ph;
+        if (str >= 30 && !ph.streak30) set('phase1', derivedPh);
+        setPhase1(derivedPh);
+      }).catch(() => {});
+    }, [])
+  );
 
   const togglePhase1 = async (id) => {
     const next = { ...phase1, [id]: !phase1[id] };
