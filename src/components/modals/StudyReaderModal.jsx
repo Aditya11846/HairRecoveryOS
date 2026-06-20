@@ -113,11 +113,11 @@ const r = StyleSheet.create({
   sourceBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 12 },
   sourceText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
   title: { fontSize: 20, fontWeight: '800', color: '#fff', lineHeight: 26, marginBottom: 20, letterSpacing: -0.3 },
-  section: { backgroundColor: 'rgba(28,28,30,0.9)', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
+  section: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
   sectionLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 8 },
   bodyText: { fontSize: 15, color: '#fff', lineHeight: 22 },
   actionBox: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 12 },
   actionText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
-  externalBtn: { alignItems: 'center', paddingVertical: 14, backgroundColor: 'rgba(28,28,30,0.9)', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
+  externalBtn: { alignItems: 'center', paddingVertical: 14, backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
   externalText: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
 });

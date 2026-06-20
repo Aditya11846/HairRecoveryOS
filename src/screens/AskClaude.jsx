@@ -321,8 +321,11 @@ export default function AskClaude() {
         )}
       </View>
 
-      {/* Input bar — only this element shifts when keyboard opens */}
-      <View style={[s.inputBar, { paddingBottom: keyboardHeight > 0 ? keyboardHeight - insets.bottom + 12 : insets.bottom + 90 }]}>
+      {/* Input bar — marginBottom lifts it by exact keyboard height; paddingBottom clears tab bar when closed */}
+      <View style={[s.inputBar, {
+        paddingBottom: keyboardHeight > 0 ? 12 : insets.bottom + 90,
+        marginBottom: keyboardHeight > 0 ? keyboardHeight : 0,
+      }]}>
         <View style={s.inputWrap}>
           <TextInput
             value={input}

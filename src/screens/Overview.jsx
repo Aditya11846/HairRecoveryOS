@@ -38,7 +38,7 @@ function EvidenceBar({ evidence }) {
   );
 }
 const evb = StyleSheet.create({
-  wrap: { backgroundColor: 'rgba(44,44,46,0.7)', borderRadius: 12, padding: 12, marginTop: 10 },
+  wrap: { backgroundColor: '#2C2C2E', borderRadius: 12, padding: 12, marginTop: 10 },
   label: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 7 },
   row: { flexDirection: 'row', gap: 4, marginBottom: 6 },
   seg: { flex: 1, height: 5, borderRadius: 3 },
@@ -114,7 +114,7 @@ function ApplicationGuide({ id }) {
 }
 const apg = StyleSheet.create({
   wrap: {
-    backgroundColor: 'rgba(28,28,30,0.85)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 12, padding: 14, marginTop: 10, borderLeftWidth: 3,
   },
   title: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1, marginBottom: 12 },
@@ -201,7 +201,7 @@ function ScalpDiagram() {
   );
 }
 const hd = StyleSheet.create({
-  wrap: { backgroundColor: 'rgba(28,28,30,0.9)', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
+  wrap: { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
   heading: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 10 },
   svgWrap: { alignItems: 'center', marginBottom: 12 },
   tipsRow: { gap: 8 },
@@ -497,7 +497,7 @@ const s = StyleSheet.create({
   },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   statCard: {
-    backgroundColor: 'rgba(28,28,30,0.9)',
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 14,
     width: '47.5%',

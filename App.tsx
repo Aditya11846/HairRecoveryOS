@@ -16,51 +16,54 @@ import { syncPendingCheckins } from './src/utils/storage';
 
 const Tab = createBottomTabNavigator();
 
-function CheckInIcon({ color }: { color: string }) {
+function CheckInIcon({ color, focused }: { color: string; focused?: boolean }) {
+  const sw = focused ? 2.4 : 1.8;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Rect x={3} y={3} width={18} height={18} rx={4} stroke={color} strokeWidth={1.8} />
-      <Path d="M8.5 12l2.5 2.5 4.5-5" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x={3} y={3} width={18} height={18} rx={4} stroke={color} strokeWidth={sw} />
+      <Path d="M8.5 12l2.5 2.5 4.5-5" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function OverviewIcon({ color }: { color: string }) {
+function OverviewIcon({ color, focused }: { color: string; focused?: boolean }) {
+  const sw = focused ? 2.4 : 1.8;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Rect x={3} y={3} width={8} height={8} rx={2} stroke={color} strokeWidth={1.8} />
-      <Rect x={13} y={3} width={8} height={8} rx={2} stroke={color} strokeWidth={1.8} opacity={0.55} />
-      <Rect x={3} y={13} width={8} height={8} rx={2} stroke={color} strokeWidth={1.8} opacity={0.55} />
-      <Rect x={13} y={13} width={8} height={8} rx={2} stroke={color} strokeWidth={1.8} opacity={0.25} />
+      <Rect x={3} y={3} width={8} height={8} rx={2} stroke={color} strokeWidth={sw} />
+      <Rect x={13} y={3} width={8} height={8} rx={2} stroke={color} strokeWidth={sw} opacity={0.55} />
+      <Rect x={3} y={13} width={8} height={8} rx={2} stroke={color} strokeWidth={sw} opacity={0.55} />
+      <Rect x={13} y={13} width={8} height={8} rx={2} stroke={color} strokeWidth={sw} opacity={0.25} />
     </Svg>
   );
 }
-function ProgressIcon({ color }: { color: string }) {
+function ProgressIcon({ color, focused }: { color: string; focused?: boolean }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Polyline points="3 17 7 9 11 14 15 5 21 9" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Polyline points="3 17 7 9 11 14 15 5 21 9" stroke={color} strokeWidth={focused ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function ResearchIcon({ color }: { color: string }) {
+function ResearchIcon({ color, focused }: { color: string; focused?: boolean }) {
+  const sw = focused ? 2.4 : 1.8;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={1.8} />
-      <Path d="M20 20l-3.5-3.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={sw} />
+      <Path d="M20 20l-3.5-3.5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
     </Svg>
   );
 }
-function ExploreIcon({ color }: { color: string }) {
+function ExploreIcon({ color, focused }: { color: string; focused?: boolean }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={1.8} />
-      <Path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={focused ? 2.4 : 1.8} />
+      <Path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" stroke={color} strokeWidth={focused ? 2.0 : 1.6} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function ClaudeIcon({ color }: { color: string }) {
+function ClaudeIcon({ color, focused }: { color: string; focused?: boolean }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z" stroke={color} strokeWidth={focused ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -145,7 +148,7 @@ function CustomTabBar({ state, navigation }: any) {
       <View style={tb.row}>
         {TABS.map((tab, i) => {
           const focused = state.index === i;
-          const color = focused ? '#3B82F6' : 'rgba(142,142,147,0.7)';
+          const color = focused ? '#3B82F6' : 'rgba(180,180,185,0.85)';
           return (
             <Pressable
               key={tab.name}
@@ -154,7 +157,7 @@ function CustomTabBar({ state, navigation }: any) {
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <View style={[tb.pill, focused && tb.pillActive]}>
-                <tab.Icon color={color} />
+                <tab.Icon color={color} focused={focused} />
               </View>
               <Text style={[tb.label, { color }]}>{tab.label}</Text>
             </Pressable>
@@ -166,12 +169,12 @@ function CustomTabBar({ state, navigation }: any) {
 }
 const tb = StyleSheet.create({
   wrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000, elevation: 1000 },
-  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,8,0.93)' },
-  border: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.10)' },
-  row: { flexDirection: 'row', paddingTop: 8, paddingHorizontal: 4 },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 48 },
-  pill: { width: 40, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  pillActive: { backgroundColor: 'rgba(59,130,246,0.15)' },
+  bg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0A0A0C' },
+  border: { position: 'absolute', top: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)' },
+  row: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 4 },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 50 },
+  pill: { width: 42, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
+  pillActive: { backgroundColor: 'rgba(59,130,246,0.18)' },
   label: { fontSize: 10, fontWeight: '600', letterSpacing: -0.1, textAlign: 'center' },
 });
 
