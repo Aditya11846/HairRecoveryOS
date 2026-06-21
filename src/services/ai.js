@@ -396,3 +396,78 @@ Focus on: microneedling, supplements (biotin, zinc, saw palmetto, etc), tretinoi
 
   return items;
 }
+
+// ─── Feature 4: Community search via AI web search ───────────────────────────
+
+const COMMUNITY_CACHE_KEY = 'community_search_cache_v2';
+const COMMUNITY_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+
+export const DEFAULT_COMMUNITY_SUBS = ['tressless', 'HairLoss', 'minoxidil', 'Alopecia'];
+export const ALL_COMMUNITY_SUBS = ['tressless', 'HairLoss', 'minoxidil', 'Alopecia', 'malehairadvice', 'FTMOver30'];
+
+export async function fetchCommunityViaAI({
+  forceRefresh = false,
+  query = '',
+  subreddits = DEFAULT_COMMUNITY_SUBS,
+} = {}) {
+  const apiKey = await get('api_key', '');
+  if (!apiKey) return { noApiKey: true };
+
+  const isDefault = !query && JSON.stringify(subreddits) === JSON.stringify(DEFAULT_COMMUNITY_SUBS);
+
+  if (isDefault && !forceRefresh) {
+    try {
+      const cached = await get(COMMUNITY_CACHE_KEY, null);
+      if (cached?.fetchedAt && cached?.items) {
+        const age = Date.now() - new Date(cached.fetchedAt).getTime();
+        if (age < COMMUNITY_TTL_MS) return { items: cached.items, fromCache: true, fetchedAt: cached.fetchedAt };
+      }
+    } catch {}
+  }
+
+  const subList = subreddits.map(s => `r/${s}`).join(', ');
+  const searchTerm = query || 'minoxidil dutasteride results progress';
+  const siteFilter = subreddits.map(s => `site:reddit.com/r/${s}`).join(' OR ');
+
+  const msg = `Search Reddit for recent posts in these communities: ${subList}.
+
+Search query: ${searchTerm}
+Site filter: ${siteFilter}
+
+Find posts from the past 1-3 months where users share real experiences, progress reports, results, side effects, or protocol tips related to hair loss treatments (especially minoxidil, dutasteride, finasteride, topical treatments, or androgenetic alopecia).
+
+Return ONLY a JSON array of 10 posts found from actual search results:
+[{
+  "title": "exact post title from search result",
+  "author": "u/username if visible, otherwise 'u/anonymous'",
+  "subreddit": "tressless or HairLoss or minoxidil etc",
+  "summary": "2-3 sentences summarizing the post content, results shared, or key insight",
+  "score": 0,
+  "numComments": 0,
+  "url": "direct reddit.com post URL if available in search result, otherwise empty string",
+  "created": "approximate date like 'Jun 2026' or 'May 2026'",
+  "sentiment": "positive" | "negative" | "neutral",
+  "tags": ["progress report" | "side effects" | "question" | "success story" | "protocol" | "before/after"]
+}]
+
+Focus on posts with real data, timelines, or concrete observations. No generic advice posts. Return ONLY the JSON array.`;
+
+  const { result, error } = await callClaudeWebSearchObject(apiKey, msg, 2500);
+  if (!result || !Array.isArray(result)) return { apiError: true, errorDetail: error };
+
+  const items = result.map((item, i) => ({
+    ...item,
+    id: item.url || `${item.title}-${i}`,
+    source: 'Reddit',
+    relevance: 'MEDIUM',
+    relevance_reason: `From r/${item.subreddit || 'tressless'} — real user experience.`,
+    action: 'informational',
+    canAddToProtocol: false,
+    isReddit: true,
+  }));
+
+  const fetchedAt = new Date().toISOString();
+  if (isDefault) set(COMMUNITY_CACHE_KEY, { items, fetchedAt }).catch(() => {});
+
+  return { items, fromCache: false, fetchedAt };
+}
