@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React, { useEffect, Component } from 'react';
-import { StatusBar, ScrollView, Text } from 'react-native';
+import { StatusBar, ScrollView, Text, AppState } from 'react-native';
 
 class ErrorBoundary extends Component<{children: React.ReactNode, name: string}, {error: string|null}> {
   state = { error: null };
@@ -67,6 +67,11 @@ export default function App() {
   useEffect(() => {
     syncPendingCheckins();
     initNotifications();
+    // Re-sync whenever the app returns to the foreground (covers offline → wifi reconnect)
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') syncPendingCheckins();
+    });
+    return () => sub.remove();
   }, []);
 
   return (

@@ -5,12 +5,18 @@ import { withTimeout } from './fetchTimeout';
 
 export const PREFIX = 'hair_os_';
 
-export const getTodayKey = () => new Date().toISOString().split('T')[0];
+export const getTodayKey = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 export const getCheckinKey = (dateStr) => `${PREFIX}checkin_${dateStr}`;
 
 // ─── Schema mapping ───────────────────────────────────────────────────────────
 
-const toSupabaseRow = (local) => ({
+const toSupabaseRow = (local, { includeCustomValues = true } = {}) => ({
   date: local.date,
   oral_minoxidil: local.oralMinoxidil ?? null,
   topical_minoxidil: local.topicalMinoxidil ?? null,
@@ -21,6 +27,9 @@ const toSupabaseRow = (local) => ({
   stress: typeof local.stress === 'number' ? local.stress : null,
   notes: local.notes || '',
   dutasteride: local.dutasteride ?? null,
+  ...(includeCustomValues && local.customValues && Object.keys(local.customValues).length > 0
+    ? { custom_values: local.customValues }
+    : {}),
 });
 
 const fromSupabaseRow = (row) => ({
@@ -36,16 +45,25 @@ const fromSupabaseRow = (row) => ({
   date: row.date,
   savedAt: row.created_at,
   synced: true,
+  customValues: row.custom_values ?? {},
 });
 
 // ─── Supabase sync ────────────────────────────────────────────────────────────
 
 const pushToSupabase = async (local) => {
   try {
-    const { error } = await withTimeout(
+    let { error } = await withTimeout(
       supabase.from('checkins').upsert(toSupabaseRow(local), { onConflict: 'date' }),
       8000, { error: 'timeout' },
     );
+    // If upsert failed and we included custom_values, retry without it
+    // (column may not exist yet in Supabase schema)
+    if (error && local.customValues) {
+      ({ error } = await withTimeout(
+        supabase.from('checkins').upsert(toSupabaseRow(local, { includeCustomValues: false }), { onConflict: 'date' }),
+        8000, { error: 'timeout' },
+      ));
+    }
     if (!error) {
       await AsyncStorage.setItem(
         getCheckinKey(local.date),
@@ -225,7 +243,7 @@ export const addCustomProtocol = async ({ name, icon = 'lightning', dose = '', f
     try {
       const { data, error } = await supabase
         .from('custom_protocols')
-        .insert({ name, source, active: true })
+        .insert({ name, icon, dose, frequency, source, active: true })
         .select()
         .single();
 
