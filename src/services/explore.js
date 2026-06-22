@@ -2,21 +2,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { get } from '../utils/storage';
 import { MODEL, EXPLORE_CACHE_TTL_MS } from '../constants/config';
 import { logger } from '../utils/logger';
+import { fetchWithTimeout } from '../utils/fetchTimeout';
 
 const EXPLORE_LOCAL_KEY = 'hair_os_explore_cache_local';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 async function fetchPubMed() {
   try {
-    const searchRes = await fetch(
+    const searchRes = await fetchWithTimeout(
       'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=oral+minoxidil+dutasteride+androgenetic+alopecia&retmax=10&sort=date&retmode=json',
+      {}, 8000,
     );
     const searchData = await searchRes.json();
     const ids = searchData?.esearchresult?.idlist || [];
     if (!ids.length) return [];
 
-    const summaryRes = await fetch(
+    const summaryRes = await fetchWithTimeout(
       `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids.join(',')}&retmode=json`,
+      {}, 8000,
     );
     const summaryData = await summaryRes.json();
     const result = summaryData?.result || {};
@@ -39,8 +42,9 @@ async function fetchPubMed() {
 
 async function fetchClinicalTrials() {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       'https://clinicaltrials.gov/api/v2/studies?query.term=androgenetic+alopecia+minoxidil&filter.overallStatus=RECRUITING&pageSize=10',
+      {}, 8000,
     );
     const data = await res.json();
     const studies = data?.studies || [];
@@ -80,12 +84,12 @@ async function fetchReddit() {
     try {
       const encoded = encodeURIComponent(q);
       const url = `https://www.reddit.com/r/tressless/search.json?q=${encoded}&sort=${sort}&t=${t}&limit=8&restrict_sr=1&raw_json=1`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
           'Accept': 'application/json',
         },
-      });
+      }, 6000);
       if (!res.ok) {
         console.log('[Reddit] HTTP', res.status, 'for:', q);
         continue;
@@ -131,18 +135,18 @@ async function fetchReddit() {
 
   // Hot fallback
   try {
-    const hotRes = await fetch('https://www.reddit.com/r/tressless/hot.json?limit=25&raw_json=1', {
+    const hotRes = await fetchWithTimeout('https://www.reddit.com/r/tressless/hot.json?limit=25&raw_json=1', {
       headers: { 'User-Agent': REDDIT_UA },
-    });
+    }, 6000);
     if (hotRes.ok) addPosts((await hotRes.json())?.data?.children);
   } catch (e) { console.log('[Reddit] hot fallback error:', e.message); }
 
   // Top all-time fallback
   if (results.length < 10) {
     try {
-      const topRes = await fetch('https://www.reddit.com/r/tressless/top.json?t=year&limit=25&raw_json=1', {
+      const topRes = await fetchWithTimeout('https://www.reddit.com/r/tressless/top.json?t=year&limit=25&raw_json=1', {
         headers: { 'User-Agent': REDDIT_UA },
-      });
+      }, 6000);
       if (topRes.ok) addPosts((await topRes.json())?.data?.children);
     } catch (e) { console.log('[Reddit] top fallback error:', e.message); }
   }
@@ -192,7 +196,7 @@ Select the 8 MOST RELEVANT items for Aditya's exact situation. Prioritize: oral 
 [{"title":"...","source":"PubMed"|"ClinicalTrial"|"Reddit","summary":"2 sentence plain English summary of what this says","relevance":"HIGH"|"MEDIUM"|"LOW","relevance_reason":"1 sentence why this is specifically relevant to Aditya's protocol","action":"ask_doctor"|"add_to_protocol"|"monitor"|"informational","canAddToProtocol":false,"url":"...","readTime":"X min read"}]`;
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -205,7 +209,7 @@ Select the 8 MOST RELEVANT items for Aditya's exact situation. Prioritize: oral 
         max_tokens: 2000,
         messages: [{ role: 'user', content: userMsg }],
       }),
-    });
+    }, 40000);
 
     const rawBody = await res.text();
     logger.debug('Explore', `Claude status: ${res.status}`);

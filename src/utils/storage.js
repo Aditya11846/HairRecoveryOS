@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { CHECKPOINT_DATE } from '../constants/config';
+import { withTimeout } from './fetchTimeout';
 
 export const PREFIX = 'hair_os_';
 
@@ -19,16 +20,13 @@ const toSupabaseRow = (local) => ({
   sleep: typeof local.sleep === 'number' ? local.sleep : null,
   stress: typeof local.stress === 'number' ? local.stress : null,
   notes: local.notes || '',
-  // NOTE: dutasteride column needs to be added to Supabase checkins table
-  // Run in Supabase SQL editor: ALTER TABLE checkins ADD COLUMN dutasteride boolean;
-  // Once confirmed, uncomment the line below:
-  // dutasteride: local.dutasteride ?? null,
+  dutasteride: local.dutasteride ?? null,
 });
 
 const fromSupabaseRow = (row) => ({
   oralMinoxidil: row.oral_minoxidil,
   topicalMinoxidil: row.topical_minoxidil,
-  dutasteride: null,
+  dutasteride: row.dutasteride ?? null,
   cigarettes: row.cigarettes ?? 0,
   sleep: row.sleep ?? 7,
   stress: row.stress ?? 5,
@@ -44,9 +42,10 @@ const fromSupabaseRow = (row) => ({
 
 const pushToSupabase = async (local) => {
   try {
-    const { error } = await supabase
-      .from('checkins')
-      .upsert(toSupabaseRow(local), { onConflict: 'date' });
+    const { error } = await withTimeout(
+      supabase.from('checkins').upsert(toSupabaseRow(local), { onConflict: 'date' }),
+      8000, { error: 'timeout' },
+    );
     if (!error) {
       await AsyncStorage.setItem(
         getCheckinKey(local.date),
@@ -71,8 +70,10 @@ export const loadCheckin = async (dateStr) => {
     const raw = await AsyncStorage.getItem(getCheckinKey(key));
     if (raw) return JSON.parse(raw);
 
-    const { data, error } = await supabase
-      .from('checkins').select('*').eq('date', key).maybeSingle();
+    const { data, error } = await withTimeout(
+      supabase.from('checkins').select('*').eq('date', key).maybeSingle(),
+      6000, { data: null, error: 'timeout' },
+    );
     if (error || !data) return null;
 
     const local = fromSupabaseRow(data);

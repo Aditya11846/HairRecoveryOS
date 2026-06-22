@@ -4,11 +4,11 @@ import {
   StyleSheet, ActivityIndicator, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C } from '../../theme';
+import { color, type, radius } from '../../theme/tokens';
 
 const SOURCE_COLORS = {
-  PubMed: '#3B82F6', Reddit: '#F97316',
-  ClinicalTrial: '#A855F7', YouTube: '#EF4444', DermNet: '#10B981',
+  PubMed: color.cool, Reddit: '#F97316',
+  ClinicalTrial: color.purple, YouTube: color.red, DermNet: color.green,
 };
 
 async function fetchPubMedAbstract(url) {
@@ -41,10 +41,10 @@ export default function StudyReaderModal({ item, visible, onClose }) {
 
   if (!item) return null;
 
-  const sourceColor = SOURCE_COLORS[item.source] || C.accent;
+  const sourceColor = SOURCE_COLORS[item.source] || color.warmA;
   const actionColor = {
-    ask_doctor: C.red, add_to_protocol: C.green, monitor: C.orange,
-  }[item.action] || C.sub;
+    ask_doctor: color.red, add_to_protocol: color.green, monitor: color.warmA,
+  }[item.action] || color.faint;
   const actionLabel = {
     ask_doctor: '🩺 Ask Dr. Soni at your next appointment',
     add_to_protocol: '✚ Consider adding to your protocol',
@@ -84,7 +84,7 @@ export default function StudyReaderModal({ item, visible, onClose }) {
             <View style={r.section}>
               <Text style={r.sectionLabel}>FULL ABSTRACT</Text>
               {loading
-                ? <ActivityIndicator color={C.accent} style={{ marginTop: 12 }} />
+                ? <ActivityIndicator color={color.warmA} style={{ marginTop: 12 }} />
                 : <Text style={[r.bodyText, { fontSize: 13, lineHeight: 20, color: 'rgba(255,255,255,0.6)' }]}>{abstract || 'Abstract unavailable.'}</Text>
               }
             </View>
@@ -104,20 +104,20 @@ export default function StudyReaderModal({ item, visible, onClose }) {
 }
 
 const r = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
-  topBar: { alignItems: 'center', paddingTop: 14, paddingBottom: 8, position: 'relative' },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#3A3A3C' },
-  doneBtn: { position: 'absolute', right: 20, top: 14 },
-  doneBtnText: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
-  content: { padding: 20 },
-  sourceBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 12 },
-  sourceText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
-  title: { fontSize: 20, fontWeight: '800', color: '#fff', lineHeight: 26, marginBottom: 20, letterSpacing: -0.3 },
-  section: { backgroundColor: '#1C1C1E', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
-  sectionLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.1, marginBottom: 8 },
-  bodyText: { fontSize: 15, color: '#fff', lineHeight: 22 },
-  actionBox: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 12 },
-  actionText: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
-  externalBtn: { alignItems: 'center', paddingVertical: 14, backgroundColor: '#1C1C1E', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
-  externalText: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
+  root:        { flex: 1, backgroundColor: color.bg },
+  topBar:      { alignItems: 'center', paddingTop: 14, paddingBottom: 8, position: 'relative' },
+  handle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: color.line2 },
+  doneBtn:     { position: 'absolute', right: 20, top: 14 },
+  doneBtnText: { fontSize: 16, fontWeight: '600', color: color.warmA },
+  content:     { padding: 20 },
+  sourceBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full, marginBottom: 12 },
+  sourceText:  { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  title:       { ...type.heading, fontSize: 20, lineHeight: 26, marginBottom: 20 },
+  section:     { backgroundColor: color.card, borderRadius: radius.row, padding: 14, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  sectionLabel:{ ...type.eyebrow, marginBottom: 8 },
+  bodyText:    { fontSize: 15, color: color.txt, lineHeight: 22 },
+  actionBox:   { borderRadius: radius.row, borderWidth: 1, padding: 14, marginBottom: 12 },
+  actionText:  { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  externalBtn: { alignItems: 'center', paddingVertical: 14, backgroundColor: color.card, borderRadius: radius.row, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  externalText:{ fontSize: 14, fontWeight: '600', color: color.dim },
 });

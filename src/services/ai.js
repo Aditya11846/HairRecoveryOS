@@ -2,6 +2,7 @@ import { get, set, saveProtocolGuide } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { MODEL, RESEARCH_CACHE_TTL_MS } from '../constants/config';
 import { logger } from '../utils/logger';
+import { fetchWithTimeout, withTimeout } from '../utils/fetchTimeout';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const RESEARCH_LOCAL_KEY = 'research_cache_local';
@@ -17,7 +18,7 @@ const HEADERS = (apiKey) => ({
 // Returns { result: Array|null, error: string|null } — never throws
 async function callClaude(apiKey, system, userMsg, maxTokens = 1024) {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: HEADERS(apiKey),
       body: JSON.stringify({
@@ -26,7 +27,7 @@ async function callClaude(apiKey, system, userMsg, maxTokens = 1024) {
         system,
         messages: [{ role: 'user', content: userMsg }],
       }),
-    });
+    }, 40000);
 
     const rawBody = await res.text();
     logger.debug('Claude', `status: ${res.status} | body preview: ${rawBody.slice(0, 500)}`);
@@ -104,11 +105,10 @@ export async function getCachedOrFreshInsights(metrics) {
 
   // 1. Supabase cache
   try {
-    const { data } = await supabase
-      .from('insights')
-      .select('content, created_at')
-      .eq('date', today)
-      .maybeSingle();
+    const { data } = await withTimeout(
+      supabase.from('insights').select('content, created_at').eq('date', today).maybeSingle(),
+      5000, { data: null },
+    );
 
     if (data?.content) {
       return { insights: JSON.parse(data.content), cachedAt: data.created_at };
@@ -168,7 +168,7 @@ Return ONLY the JSON array, no other text, no markdown fences.`;
 // Returns { result: Array|null, error: string|null } — never throws
 async function fetchResearchWithWebSearch(apiKey) {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: HEADERS(apiKey),
       body: JSON.stringify({
@@ -177,7 +177,7 @@ async function fetchResearchWithWebSearch(apiKey) {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: RESEARCH_USER_MSG }],
       }),
-    });
+    }, 60000);
 
     const rawBody = await res.text();
     logger.debug('Research', `status: ${res.status}`);
@@ -247,12 +247,10 @@ export async function getCachedOrFreshResearch(forceRefresh = false) {
   if (!forceRefresh) {
     // 1. Supabase cache
     try {
-      const { data } = await supabase
-        .from('research_cache')
-        .select('fetched_at, items')
-        .order('fetched_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data } = await withTimeout(
+        supabase.from('research_cache').select('fetched_at, items').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
+        5000, { data: null },
+      );
 
       if (data) {
         const ageMs = Date.now() - new Date(data.fetched_at).getTime();
@@ -299,7 +297,7 @@ const SUGGESTIONS_TTL_MS = 24 * 60 * 60 * 1000;
 
 async function callClaudeWebSearchObject(apiKey, userMsg, maxTokens = 1500) {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: HEADERS(apiKey),
       body: JSON.stringify({
@@ -308,7 +306,7 @@ async function callClaudeWebSearchObject(apiKey, userMsg, maxTokens = 1500) {
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: userMsg }],
       }),
-    });
+    }, 60000);
     const rawBody = await res.text();
     if (!res.ok) return { result: null, error: `HTTP ${res.status}` };
     let data;
