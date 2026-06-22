@@ -6,14 +6,14 @@ import {
 import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import Svg, { Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 import {
   saveCheckin, loadCheckin, getTodayKey, getCustomProtocols,
   removeCustomProtocol, getProtocolGuide, getStreakCount,
 } from '../utils/storage';
 import { cancelTodayReminder } from '../services/notifications';
 import AddProtocolSheet from '../components/sheets/AddProtocolSheet';
-import { Pill, Droplet, Shield, Sun, Check, Cigarette, Moon, Lightning } from '../components/Icon';
+import { Pill, Droplet, Shield, Sun, Check, Cigarette, Moon, Lightning, Flask, Dna, Butterfly, Star } from '../components/Icon';
 import SectionHeader from '../components/SectionHeader';
 import { color, type, radius, space } from '../theme/tokens';
 
@@ -28,20 +28,35 @@ function StreakRing({ streak, max = 90 }) {
   const circ = 2 * Math.PI * r;
   const pct = Math.min(streak / max, 1);
   const offset = circ * (1 - pct);
+  const auraSize = size + 28;
+  const auraCx = auraSize / 2;
+  const auraCy = auraSize / 2;
+  const glowStyle = streak > 0 ? {
+    shadowColor: '#FFB020',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 16,
+    shadowOpacity: 0.55,
+  } : {};
   return (
-    <View style={ring.wrap}>
+    <View style={[ring.wrap, glowStyle]}>
+      {/* Aura halos */}
+      <Svg width={auraSize} height={auraSize} style={[StyleSheet.absoluteFill, { margin: -14 }]}>
+        <Circle cx={auraCx} cy={auraCy} r={r + 13} stroke={color.warmA} strokeWidth={1} fill="none" opacity={streak > 0 ? 0.18 : 0.07} />
+        <Circle cx={auraCx} cy={auraCy} r={r + 8}  stroke={color.warmA} strokeWidth={1.5} fill="none" opacity={streak > 0 ? 0.30 : 0.12} />
+      </Svg>
+      {/* Ring */}
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Circle cx={cx} cy={cy} r={r} stroke={color.line2} strokeWidth={sw} fill="none" />
         {streak > 0 && (
           <Circle
             cx={cx} cy={cy} r={r}
-            stroke={color.cool} strokeWidth={sw} fill="none"
+            stroke={color.warmA} strokeWidth={sw} fill="none"
             strokeDasharray={`${circ}`} strokeDashoffset={`${offset}`}
             strokeLinecap="round" rotation="-90" origin={`${cx},${cy}`}
           />
         )}
       </Svg>
-      <Text style={ring.num}>{streak}</Text>
+      <Text style={[ring.num, streak > 0 && { color: color.warmA }]}>{streak}</Text>
       <Text style={ring.label}>DAYS</Text>
     </View>
   );
@@ -64,54 +79,52 @@ function ProgressDots({ fields }) {
   );
 }
 
-// ─── Warm gradient button fill ────────────────────────────────────────────────
-
-function WarmGradientFill({ borderRadius = radius.card }) {
-  return (
-    <Svg style={StyleSheet.absoluteFill}>
-      <Defs>
-        <LinearGradient id="btnGrad" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={color.warmA} />
-          <Stop offset="1" stopColor={color.warmB} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" rx={borderRadius} fill="url(#btnGrad)" />
-    </Svg>
-  );
-}
-
 // ─── Med Toggle Row ───────────────────────────────────────────────────────────
 
 const MED_ICONS = {
-  oral:     Pill,
-  topical:  Droplet,
-  duta:     Shield,
-  rlc:      Sun,
+  oral:    Pill,
+  topical: Droplet,
+  duta:    Shield,
+  rlc:     Sun,
 };
+
+// Each med's identity color — all within gold-orange-copper family
+const MED_ACCENT = {
+  oral:    '#FFB020', // gold
+  topical: '#FF6B4A', // coral-orange
+  rlc:     '#FF9030', // amber-orange
+  duta:    '#CF8020', // deep copper
+};
+
+function ra(hex, a) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 function MedToggle({ iconKey, label, dose, value, onChange, last }) {
   const taken   = value === true;
   const skipped = value === false;
   const IconComp = MED_ICONS[iconKey] || Pill;
-  const iconColor = taken ? color.warmA : skipped ? color.red : color.faint;
+  const accent   = MED_ACCENT[iconKey] || '#FFB020';
+
+  const stripColor  = skipped ? color.red : taken ? accent : ra(accent, 0.30);
+  const iconBg      = skipped ? 'rgba(255,69,58,0.10)' : taken ? ra(accent, 0.16) : ra(accent, 0.07);
+  const iconBorder  = skipped ? 'rgba(255,69,58,0.25)' : taken ? ra(accent, 0.38) : ra(accent, 0.22);
+  const iconColor   = skipped ? color.red : taken ? accent : ra(accent, 0.50);
+  const rowBg       = taken ? ra(accent, 0.05) : skipped ? 'rgba(255,69,58,0.04)' : 'transparent';
 
   return (
-    <View style={[mt.row, !last && mt.border, taken && mt.rowTaken, skipped && mt.rowSkipped]}>
-      {/* Left accent strip */}
-      <View style={[mt.strip, taken && mt.stripWarm, skipped && mt.stripRed]} />
-
-      {/* Icon */}
-      <View style={[mt.iconWrap, taken && mt.iconWarm, skipped && mt.iconRed]}>
+    <View style={[mt.row, !last && mt.border, { backgroundColor: rowBg }]}>
+      <View style={[mt.strip, { backgroundColor: stripColor }]} />
+      <View style={[mt.iconWrap, { backgroundColor: iconBg, borderColor: iconBorder }]}>
         <IconComp size={18} color={iconColor} />
       </View>
-
-      {/* Text */}
       <View style={{ flex: 1 }}>
-        <Text style={[mt.name, taken && { color: color.warmA }, skipped && { color: color.red }]}>{label}</Text>
+        <Text style={[mt.name, { color: taken ? accent : skipped ? color.red : color.txt }]}>{label}</Text>
         <Text style={mt.dose}>{dose}</Text>
       </View>
-
-      {/* Skip / Take */}
       <View style={mt.btns}>
         <TouchableOpacity
           onPress={() => onChange(skipped ? null : false)}
@@ -122,10 +135,9 @@ function MedToggle({ iconKey, label, dose, value, onChange, last }) {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onChange(taken ? null : true)}
-          style={[mt.takeBtn, taken && { overflow: 'hidden' }]}
+          style={[mt.takeBtn, taken && { backgroundColor: accent }]}
           activeOpacity={0.7}
         >
-          {taken && <WarmGradientFill borderRadius={radius.row} />}
           <Text style={[mt.takeTxt, taken && { color: '#1A1000' }, !taken && { color: color.dim }]}>
             {taken ? '✓ Done' : 'Log'}
           </Text>
@@ -135,16 +147,17 @@ function MedToggle({ iconKey, label, dose, value, onChange, last }) {
   );
 }
 
-// ─── Cigarette Stepper (damage card — red is intentional here) ────────────────
+// ─── Cigarette Stepper ────────────────────────────────────────────────────────
 
 function CigStepper({ value, onChange }) {
-  const numColor = value === 0 ? color.green : color.red;
+  const numColor = value === 0 ? color.warmA : value < 5 ? color.warmB : color.red;
+  const cigIconColor = value === 0 ? color.warmA : value < 5 ? color.warmB : color.red;
   return (
     <View style={cig.wrap}>
       <View style={cig.titleRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Cigarette size={18} color={color.red} />
-          <Text style={cig.title}>Cigarettes</Text>
+          <Cigarette size={18} color={cigIconColor} />
+          <Text style={[cig.title, { color: cigIconColor }]}>Cigarettes</Text>
         </View>
         <Text style={cig.hint}>today · target 0</Text>
       </View>
@@ -176,7 +189,7 @@ function SleepRow({ value, onChange }) {
     <View style={slp.wrap}>
       <View style={slp.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Moon size={18} color={color.cool} />
+          <Moon size={18} color={color.warmA} />
           <Text style={slp.label}>Sleep</Text>
         </View>
         <Text style={[slp.value, { color: displayColor }]}>{val}<Text style={slp.unit}> h</Text></Text>
@@ -184,9 +197,9 @@ function SleepRow({ value, onChange }) {
       <Slider
         minimumValue={3} maximumValue={12} step={0.5}
         value={val} onValueChange={onChange}
-        minimumTrackTintColor={color.cool}
+        minimumTrackTintColor={color.warmA}
         maximumTrackTintColor={color.line2}
-        thumbTintColor={Platform.OS === 'android' ? color.cool : '#FFFFFF'}
+        thumbTintColor={Platform.OS === 'android' ? color.warmA : '#FFFFFF'}
         style={slp.slider}
       />
       <View style={slp.markers}>
@@ -239,8 +252,8 @@ function StressRow({ value, onChange }) {
 // ─── Shedding Row ─────────────────────────────────────────────────────────────
 
 const SHED_OPTS = [
-  { value: 'none',  label: 'None',  fillColor: color.green },
-  { value: 'light', label: 'Light', fillColor: color.warmA },
+  { value: 'none',  label: 'None',  fillColor: color.warmA },
+  { value: 'light', label: 'Light', fillColor: color.warmB },
   { value: 'heavy', label: 'Heavy', fillColor: color.red },
 ];
 
@@ -256,10 +269,10 @@ function ShedRow({ value, onChange }) {
             <TouchableOpacity
               key={opt.value}
               onPress={() => onChange(opt.value)}
-              style={[shed.btn, active && { backgroundColor: opt.fillColor, borderColor: opt.fillColor }]}
+              style={[shed.btn, active && { backgroundColor: opt.fillColor + '22', borderColor: opt.fillColor, borderWidth: 1.5 }]}
               activeOpacity={0.75}
             >
-              <Text style={[shed.txt, { color: active ? (opt.value === 'none' ? '#001A0A' : '#fff') : color.dim }]}>
+              <Text style={[shed.txt, { color: active ? opt.fillColor : color.dim }]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -320,6 +333,32 @@ function GuideModal({ guide, name, onClose }) {
   );
 }
 
+// ─── Icon accent palette (each icon type has its own color identity) ──────────
+const ICON_ACCENT = {
+  lightning: '#FFB020', // gold
+  pill:      '#CF8020', // copper
+  droplet:   '#FF6B4A', // coral
+  shield:    '#5B8DEF', // cool blue
+  sun:       '#FF9030', // amber-orange
+  moon:      '#A78BFA', // soft lavender
+  flask:     '#30D158', // research green
+  dna:       '#BF5AF2', // bio purple
+  butterfly: '#FF9030', // amber growth
+  star:      '#FFD60A', // bright gold
+};
+
+// ─── Glow card wrapper (shadow lives on outer, clipping on inner) ─────────────
+function GlowCard({ glowColor, borderColor, style, innerStyle, children }) {
+  const bc = borderColor || (glowColor + '2E'); // ~18% opacity border by default
+  return (
+    <View style={[{ borderRadius: radius.card, shadowColor: glowColor, shadowOffset: { width: 0, height: 0 }, shadowRadius: 12, shadowOpacity: 0.28 }, style]}>
+      <View style={[{ borderRadius: radius.card, backgroundColor: color.card, overflow: 'hidden', borderWidth: 1, borderColor: bc }, innerStyle]}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const QUICK_TAGS = ['Side effect', 'Missed window', 'Scalp irritation', 'Extra tired', 'Feeling good', 'No issues'];
@@ -345,6 +384,7 @@ export default function CheckIn() {
   const [editMode, setEditMode] = useState(false);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
   const [viewingGuide, setViewingGuide] = useState(null);
+  const [expandedCustomId, setExpandedCustomId] = useState(null);
 
   const saveScale = useRef(new Animated.Value(1)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
@@ -509,41 +549,93 @@ export default function CheckIn() {
             <>
               <SectionHeader label="Custom Protocol" />
               <View style={s.medGroup}>
-                {customProtocols.map((p, i) => (
-                  <View key={p.id} style={[mt.row, i < customProtocols.length - 1 && mt.border]}>
-                    <View style={mt.strip} />
-                    {editMode && (
-                      <TouchableOpacity onPress={() => handleDelete(p.id)} style={s.delBtn} activeOpacity={0.7}>
-                        <Text style={s.delTxt}>−</Text>
-                      </TouchableOpacity>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={mt.name}>{p.name}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => handleViewGuide(p.name)} style={s.infoBtn} activeOpacity={0.7}>
-                      <Text style={s.infoTxt}>ⓘ</Text>
-                    </TouchableOpacity>
-                    <View style={mt.btns}>
+                {customProtocols.map((p, i) => {
+                  const taken   = customValues[p.id] === true;
+                  const skipped = customValues[p.id] === false;
+                  const isExpanded = expandedCustomId === p.id;
+                  const isLast = i === customProtocols.length - 1;
+
+                  // New protocols have p.icon set; old ones only have the long research title
+                  const CUST_ICONS = { lightning: Lightning, pill: Pill, droplet: Droplet, shield: Shield, sun: Sun, moon: Moon, flask: Flask, dna: Dna, butterfly: Butterfly, star: Star };
+                  const CustomIcon = CUST_ICONS[p.icon] || Lightning;
+
+                  let displayName = p.name;
+                  if (!p.icon) {
+                    // Legacy: extract short name from long research title
+                    const stopWords = [' for ', ' of ', ' with ', ' in ', ' and ', ':'];
+                    for (const sw of stopWords) {
+                      const idx = p.name.toLowerCase().indexOf(sw.toLowerCase());
+                      if (idx > 0 && idx < 28) { displayName = p.name.slice(0, idx); break; }
+                    }
+                    if (displayName.length > 22) displayName = displayName.slice(0, 20) + '…';
+                  }
+
+                  const subtitle = p.dose
+                    ? `${p.dose}${p.frequency ? ' · ' + p.frequency : ''}`
+                    : p.frequency
+                      ? `${p.frequency} · ${isExpanded ? 'tap to close' : 'tap to expand'}`
+                      : `Custom · ${isExpanded ? 'tap to close' : 'tap to expand'}`;
+
+                  const accent = ICON_ACCENT[p.icon] || '#FFB020';
+                  const stripColor  = skipped ? color.red : taken ? accent : ra(accent, 0.30);
+                  const iconBg      = skipped ? 'rgba(255,69,58,0.10)' : taken ? ra(accent, 0.16) : ra(accent, 0.07);
+                  const iconBorder  = skipped ? 'rgba(255,69,58,0.25)' : taken ? ra(accent, 0.38) : ra(accent, 0.22);
+                  const iconColor   = skipped ? color.red : taken ? accent : ra(accent, 0.50);
+                  const rowBg       = taken ? ra(accent, 0.05) : skipped ? 'rgba(255,69,58,0.04)' : 'transparent';
+
+                  return (
+                    <View key={p.id}>
                       <TouchableOpacity
-                        onPress={() => customField(p.id)(customValues[p.id] === false ? null : false)}
-                        style={[mt.skipBtn, customValues[p.id] === false && mt.skipActive]}
-                        activeOpacity={0.7}
+                        style={[mt.row, (!isExpanded && !isLast) && mt.border, { backgroundColor: rowBg }]}
+                        onPress={() => setExpandedCustomId(isExpanded ? null : p.id)}
+                        activeOpacity={0.75}
                       >
-                        <Text style={[mt.skipTxt, { color: customValues[p.id] === false ? '#fff' : color.faint }]}>✕</Text>
+                        <View style={[mt.strip, { backgroundColor: stripColor }]} />
+                        {editMode && (
+                          <TouchableOpacity onPress={() => handleDelete(p.id)} style={s.delBtn} activeOpacity={0.7}>
+                            <Text style={s.delTxt}>−</Text>
+                          </TouchableOpacity>
+                        )}
+                        <View style={[mt.iconWrap, { backgroundColor: iconBg, borderColor: iconBorder }]}>
+                          <CustomIcon size={18} color={iconColor} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[mt.name, { color: taken ? accent : skipped ? color.red : color.txt }]}>
+                            {displayName}
+                          </Text>
+                          <Text style={mt.dose}>{subtitle}</Text>
+                        </View>
+                        <Text style={s.chevron}>{isExpanded ? '⌃' : '⌄'}</Text>
+                        <TouchableOpacity onPress={() => handleViewGuide(p.name)} style={s.infoBtn} activeOpacity={0.7}>
+                          <Text style={s.infoTxt}>ⓘ</Text>
+                        </TouchableOpacity>
+                        <View style={mt.btns}>
+                          <TouchableOpacity
+                            onPress={() => customField(p.id)(skipped ? null : false)}
+                            style={[mt.skipBtn, skipped && mt.skipActive]}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[mt.skipTxt, { color: skipped ? '#fff' : color.faint }]}>✕</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => customField(p.id)(taken ? null : true)}
+                            style={[mt.takeBtn, taken && { backgroundColor: accent }]}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[mt.takeTxt, taken && { color: '#1A1000' }, !taken && { color: color.dim }]}>
+                              {taken ? '✓ Done' : 'Log'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => customField(p.id)(customValues[p.id] === true ? null : true)}
-                        style={[mt.takeBtn, customValues[p.id] === true && { overflow: 'hidden' }]}
-                        activeOpacity={0.7}
-                      >
-                        {customValues[p.id] === true && <WarmGradientFill borderRadius={radius.row} />}
-                        <Text style={[mt.takeTxt, customValues[p.id] === true && { color: '#1A1000' }, customValues[p.id] !== true && { color: color.dim }]}>
-                          {customValues[p.id] === true ? '✓ Done' : 'Log'}
-                        </Text>
-                      </TouchableOpacity>
+                      {isExpanded && (
+                        <View style={[s.customDetail, !isLast && mt.border]}>
+                          <Text style={s.customFullName}>{p.name}</Text>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </>
           )}
@@ -586,6 +678,7 @@ export default function CheckIn() {
               placeholder="Anything unusual, side effects, observations..."
               placeholderTextColor={color.faint}
               multiline
+              selectionColor={color.warmA}
               style={s.notes}
             />
           </View>
@@ -595,15 +688,14 @@ export default function CheckIn() {
             <TouchableOpacity
               onPress={handleSave}
               disabled={!canSave}
-              style={[s.saveBtn, (!canSave && !saved) && s.saveBtnDisabled, saved && s.saveBtnDone]}
+              style={[
+                s.saveBtn,
+                (!canSave && !saved) && s.saveBtnDisabled,
+                (canSave && !saved) && { backgroundColor: color.warmA },
+                saved && { backgroundColor: color.warmA },
+              ]}
               activeOpacity={0.85}
             >
-              {(canSave && !saved) && <WarmGradientFill />}
-              {saved && (
-                <Svg style={StyleSheet.absoluteFill}>
-                  <Rect x="0" y="0" width="100%" height="100%" rx={radius.card} fill={color.green} />
-                </Svg>
-              )}
               <Text style={[s.saveTxt, (!canSave && !saved) && { color: color.faint }]}>
                 {saved ? '✓ Saved' : canSave
                   ? 'Save today\'s log'
@@ -647,10 +739,10 @@ export default function CheckIn() {
 const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
-  eyebrow: { ...type.eyebrow, marginBottom: 6 },
-  title: { ...type.screenTitle },
-  priorBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(48,209,88,0.12)', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
-  priorBadgeTxt: { fontSize: 11, fontWeight: '600', color: color.green },
+  eyebrow: { ...type.eyebrow, marginBottom: 6, color: 'rgba(255,176,32,0.65)' },
+  title: { ...type.screenTitle, color: color.warmA },
+  priorBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,176,32,0.12)', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
+  priorBadgeTxt: { fontSize: 11, fontWeight: '600', color: color.warmA },
   headerBtns: { flexDirection: 'row', gap: 6, marginTop: 12 },
   hBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.row, backgroundColor: color.card },
   hBtnActive: { backgroundColor: 'rgba(255,176,32,0.12)' },
@@ -665,8 +757,8 @@ const s = StyleSheet.create({
   addTxt: { fontSize: 14, fontWeight: '600', color: color.warmA },
 
   tagRow: { paddingHorizontal: 14, paddingVertical: 12, gap: 6 },
-  tagChip: { backgroundColor: color.card2, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
-  tagChipTxt: { fontSize: 12, fontWeight: '600', color: color.dim },
+  tagChip: { backgroundColor: color.card2, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7, borderLeftWidth: 2, borderLeftColor: color.warmA, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  tagChipTxt: { fontSize: 12, fontWeight: '600', color: color.warmA },
   tagDivider: { height: StyleSheet.hairlineWidth, backgroundColor: color.line, marginHorizontal: 16 },
   notes: { paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: color.txt, minHeight: 80, textAlignVertical: 'top' },
 
@@ -683,6 +775,9 @@ const s = StyleSheet.create({
   delTxt: { fontSize: 18, fontWeight: '700', color: '#fff', lineHeight: 20 },
   infoBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: color.card2, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   infoTxt: { fontSize: 14, color: color.dim },
+  chevron: { fontSize: 12, color: color.faint, marginRight: 6 },
+  customDetail: { paddingHorizontal: 16, paddingBottom: 14, paddingTop: 2, backgroundColor: 'rgba(255,176,32,0.03)' },
+  customFullName: { fontSize: 13, color: color.dim, lineHeight: 19 },
 });
 
 const ring = StyleSheet.create({
@@ -695,24 +790,18 @@ const pd = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   item: { alignItems: 'center', gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: color.line2 },
-  dotFilled: { backgroundColor: color.cool },
+  dotFilled: { backgroundColor: color.warmA },
   dotAll: { backgroundColor: color.green },
   lbl: { fontSize: 9, fontWeight: '600', color: color.faint },
-  lblFilled: { color: color.cool },
+  lblFilled: { color: color.warmA },
   allText: { fontSize: 11, fontWeight: '700', color: color.green, marginLeft: 8 },
 });
 
 const mt = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingRight: 14, paddingVertical: 14, minHeight: 72 },
   border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
-  rowTaken: { backgroundColor: 'rgba(255,176,32,0.06)' },
-  rowSkipped: { backgroundColor: 'rgba(255,69,58,0.05)' },
-  strip: { width: 3, alignSelf: 'stretch', backgroundColor: color.line, borderRadius: 2, marginRight: 12 },
-  stripWarm: { backgroundColor: color.warmA },
-  stripRed:  { backgroundColor: color.red },
-  iconWrap: { width: 38, height: 38, borderRadius: 10, backgroundColor: color.card2, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
-  iconWarm: { backgroundColor: 'rgba(255,176,32,0.15)', borderColor: 'rgba(255,176,32,0.3)' },
-  iconRed:  { backgroundColor: 'rgba(255,69,58,0.12)', borderColor: 'rgba(255,69,58,0.25)' },
+  strip: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginRight: 12 },
+  iconWrap: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: StyleSheet.hairlineWidth },
   name: { fontSize: 15, fontWeight: '600', color: color.txt, marginBottom: 2 },
   dose: { fontSize: 12, color: color.dim },
   btns: { flexDirection: 'row', gap: 6, marginLeft: 10 },
@@ -733,7 +822,7 @@ const cig = StyleSheet.create({
   btnOff: { opacity: 0.3 },
   btnTxt: { fontSize: 28, fontWeight: '300', color: color.txt, lineHeight: 34 },
   num: { fontSize: 64, fontWeight: '900', lineHeight: 70, letterSpacing: -2, minWidth: 80, textAlign: 'center' },
-  zeroNote: { textAlign: 'center', fontSize: 12, color: color.green, fontWeight: '600', marginTop: 8 },
+  zeroNote: { textAlign: 'center', fontSize: 12, color: color.warmA, fontWeight: '600', marginTop: 8 },
 });
 
 const slp = StyleSheet.create({

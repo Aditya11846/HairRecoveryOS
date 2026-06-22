@@ -212,8 +212,8 @@ export const getCustomProtocols = async () => {
   }
 };
 
-export const addCustomProtocol = async (name, source) => {
-  const protocol = { id: `local_${Date.now()}`, name, source, active: true, added_at: new Date().toISOString() };
+export const addCustomProtocol = async ({ name, icon = 'lightning', dose = '', frequency = 'Daily', source = 'Manual' } = {}) => {
+  const protocol = { id: `local_${Date.now()}`, name, icon, dose, frequency, source, active: true, added_at: new Date().toISOString() };
 
   try {
     const existing = await getCustomProtocols();
