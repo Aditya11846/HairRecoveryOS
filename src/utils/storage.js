@@ -276,6 +276,13 @@ export const removeCustomProtocol = async (id) => {
   const existing = await getCustomProtocols();
   const updated = existing.filter(p => p.id !== id);
   await AsyncStorage.setItem(CUSTOM_PROTOCOLS_KEY, JSON.stringify(updated));
+  // Soft-delete from Supabase so deleted protocols don't reappear on fresh install
+  if (!String(id).startsWith('local_')) {
+    withTimeout(
+      supabase.from('custom_protocols').update({ active: false }).eq('id', id),
+      6000, { error: 'timeout' },
+    ).catch(() => {});
+  }
 };
 
 const PROTOCOL_GUIDES_KEY = `${PREFIX}protocol_guides`;

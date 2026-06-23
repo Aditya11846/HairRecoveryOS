@@ -422,6 +422,10 @@ export default function CheckIn() {
         setForm(existing);
         setHadPrior(true);
         if (existing.customValues) setCustomValues(existing.customValues);
+      } else {
+        setForm(DEFAULT);
+        setCustomValues({});
+        setHadPrior(false);
       }
       setStreak(str);
     }).catch(() => {});
@@ -480,6 +484,7 @@ export default function CheckIn() {
 
   const handleDelete = async id => {
     await removeCustomProtocol(id);
+    setCustomValues(v => { const next = { ...v }; delete next[id]; return next; });
     refreshProtocols();
   };
 
