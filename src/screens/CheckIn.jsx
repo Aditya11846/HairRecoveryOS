@@ -483,7 +483,9 @@ export default function CheckIn() {
   };
 
   const handleDelete = async id => {
-    await removeCustomProtocol(id);
+    try {
+      await removeCustomProtocol(id);
+    } catch { return; }
     setCustomValues(v => { const next = { ...v }; delete next[id]; return next; });
     refreshProtocols();
   };
