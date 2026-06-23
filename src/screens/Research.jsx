@@ -322,7 +322,7 @@ export default function Research() {
 
   const handleAddToProtocol = (item) => {
     setSheetItem(item);
-    setSheetCb(() => async () => { await addCustomProtocol(item.title, item.source); setSheetItem(null); });
+    setSheetCb(() => async () => { await addCustomProtocol({ name: item.title, source: item.source }); setSheetItem(null); });
     setSheetCancelCb(() => () => setSheetItem(null));
   };
 

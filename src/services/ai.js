@@ -101,7 +101,8 @@ export async function generateInsights(metrics) {
 }
 
 export async function getCachedOrFreshInsights(metrics) {
-  const today = new Date().toISOString().split('T')[0];
+  const _d = new Date();
+  const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
 
   // 1. Supabase cache
   try {

@@ -69,8 +69,9 @@ function formatDate(str) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-const todayStr     = () => new Date().toISOString().split('T')[0];
-const yesterdayStr = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; };
+const localDs = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayStr     = () => localDs();
+const yesterdayStr = () => { const d = new Date(); d.setDate(d.getDate() - 1); return localDs(d); };
 
 // ─── Critical Marker Card ─────────────────────────────────────────────────────
 

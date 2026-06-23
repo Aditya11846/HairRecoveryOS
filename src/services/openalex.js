@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '../utils/fetchTimeout';
+
 const BASE = 'https://api.openalex.org/works';
 export const DEFAULT_OPENALEX_QUERY = 'dutasteride androgenetic alopecia minoxidil';
 const FIELDS = 'id,title,publication_year,cited_by_count,open_access,doi,primary_location,authorships';
@@ -11,12 +13,12 @@ export async function searchOpenAlex(query = DEFAULT_OPENALEX_QUERY, perPage = 1
       filter: 'type:article',
       select: FIELDS,
     });
-    const res = await fetch(`${BASE}?${params}`, {
+    const res = await fetchWithTimeout(`${BASE}?${params}`, {
       headers: {
         'User-Agent': 'HairRecoveryOS/1.0 (mailto:aditherealone@gmail.com)',
         Accept: 'application/json',
       },
-    });
+    }, 15000);
     if (!res.ok) return [];
     const data = await res.json();
     const works = data.results || [];

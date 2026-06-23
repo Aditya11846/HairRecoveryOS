@@ -1,21 +1,25 @@
+import { fetchWithTimeout } from '../utils/fetchTimeout';
+
 const BASE = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
 const HEADERS = { 'User-Agent': 'HairRecoveryOS/1.0' };
 export const DEFAULT_PUBMED_QUERY = 'androgenetic alopecia oral minoxidil dutasteride 2024 2025 2026';
 
 export async function searchPubMed(query = DEFAULT_PUBMED_QUERY, maxResults = 10) {
   try {
-    const searchRes = await fetch(
+    const searchRes = await fetchWithTimeout(
       `${BASE}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${maxResults}&sort=date&retmode=json`,
-      { headers: HEADERS }
+      { headers: HEADERS },
+      15000,
     );
     if (!searchRes.ok) return [];
     const searchData = await searchRes.json();
     const ids = searchData.esearchresult?.idlist || [];
     if (ids.length === 0) return [];
 
-    const summaryRes = await fetch(
+    const summaryRes = await fetchWithTimeout(
       `${BASE}/esummary.fcgi?db=pubmed&id=${ids.join(',')}&retmode=json`,
-      { headers: HEADERS }
+      { headers: HEADERS },
+      15000,
     );
     if (!summaryRes.ok) return [];
     const summaryData = await summaryRes.json();

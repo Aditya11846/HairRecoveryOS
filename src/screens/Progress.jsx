@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getLast30Days, getLastNDays, getStreakCount, get, set } from '../utils/storage';
+import { getLast30Days, getLastNDays, getStreakCount, get, set, getTodayKey } from '../utils/storage';
 import { TIMELINE, PHASE1_OBJECTIVES } from '../constants/timeline';
 import AreaChart from '../components/AreaChart';
 import Sparkline from '../components/Sparkline';
@@ -144,7 +144,8 @@ function buildCells(heatmapDays, todayStr, weeks = 12) {
     const cellDate = new Date(today);
     cellDate.setDate(today.getDate() - daysFromToday);
     if (cellDate > today) return { intensity: 0 };
-    const dateStr = cellDate.toISOString().split('T')[0];
+    const yr = cellDate.getFullYear(), mo = String(cellDate.getMonth()+1).padStart(2,'0'), dy = String(cellDate.getDate()).padStart(2,'0');
+    const dateStr = `${yr}-${mo}-${dy}`;
     const record = byDate[dateStr];
     if (!record || !record.hasCheckin) {
       // Past date with no check-in = miss (damage)
@@ -176,7 +177,7 @@ export default function Progress({ navigation }) {
   const [bloodworkData, setBloodworkData] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [showModal, setShowModal]   = useState(false);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayKey();
 
   useFocusEffect(
     useCallback(() => {

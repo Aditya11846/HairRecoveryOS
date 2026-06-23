@@ -9,8 +9,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Circle } from 'react-native-svg';
 import {
   saveCheckin, loadCheckin, getTodayKey, getCustomProtocols,
-  removeCustomProtocol, getProtocolGuide, getStreakCount,
+  removeCustomProtocol, getProtocolGuide, saveProtocolGuide, getStreakCount,
 } from '../utils/storage';
+import { fetchProtocolGuide } from '../services/ai';
 import { cancelTodayReminder } from '../services/notifications';
 import AddProtocolSheet from '../components/sheets/AddProtocolSheet';
 import { Pill, Droplet, Shield, Sun, Check, Cigarette, Moon, Lightning, Flask, Dna, Butterfly, Star } from '../components/Icon';
@@ -302,6 +303,10 @@ function GuideModal({ guide, name, onClose }) {
               <ActivityIndicator color={color.warmA} />
               <Text style={gm.loadingTxt}>Fetching usage guide…</Text>
             </View>
+          ) : guide._error ? (
+            <View style={gm.loading}>
+              <Text style={gm.loadingTxt}>No guide available.{'\n'}Set your API key in the Claude tab and try again.</Text>
+            </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={gm.metaRow}>
@@ -386,6 +391,7 @@ export default function CheckIn() {
   const [viewingGuide, setViewingGuide] = useState(null);
   const [expandedCustomId, setExpandedCustomId] = useState(null);
 
+  const isSaving = useRef(false);
   const saveScale = useRef(new Animated.Value(1)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
   const ringOpacity = useRef(new Animated.Value(0)).current;
@@ -457,7 +463,13 @@ export default function CheckIn() {
   };
 
   const handleSave = async () => {
-    await saveCheckin({ ...form, customValues });
+    if (isSaving.current) return;
+    isSaving.current = true;
+    try {
+      await saveCheckin({ ...form, customValues });
+    } finally {
+      isSaving.current = false;
+    }
     setSaved(true);
     triggerBurst();
     setHadPrior(true);
@@ -473,8 +485,13 @@ export default function CheckIn() {
 
   const handleViewGuide = async name => {
     setViewingGuide({ name, guide: null });
-    const guide = await getProtocolGuide(name);
-    setViewingGuide({ name, guide });
+    let guide = await getProtocolGuide(name);
+    if (!guide) {
+      guide = await fetchProtocolGuide(name);
+      if (guide) saveProtocolGuide(name, guide).catch(() => {});
+    }
+    // Use functional updater — if user closed the modal while fetch was in-flight, don't re-open it
+    setViewingGuide(cur => cur?.name === name ? { name, guide: guide || { _error: true } } : cur);
   };
 
   const appendTag = tag => {

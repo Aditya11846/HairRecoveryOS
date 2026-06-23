@@ -5,13 +5,15 @@ import { withTimeout } from './fetchTimeout';
 
 export const PREFIX = 'hair_os_';
 
-export const getTodayKey = () => {
-  const d = new Date();
+// Always use local date — never toISOString() which returns UTC
+const localDateStr = (d = new Date()) => {
   const yyyy = d.getFullYear();
   const mm   = String(d.getMonth() + 1).padStart(2, '0');
   const dd   = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
+
+export const getTodayKey = () => localDateStr();
 export const getCheckinKey = (dateStr) => `${PREFIX}checkin_${dateStr}`;
 
 // ─── Schema mapping ───────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ const fromSupabaseRow = (row) => ({
   dutasteride: row.dutasteride ?? null,
   cigarettes: row.cigarettes ?? 0,
   sleep: row.sleep ?? 7,
-  stress: row.stress ?? 5,
+  stress: row.stress ?? null,
   redLightComb: row.red_light,
   sheddingNoticed: row.shedding,
   notes: row.notes || '',
@@ -58,7 +60,7 @@ const pushToSupabase = async (local) => {
     );
     // If upsert failed and we included custom_values, retry without it
     // (column may not exist yet in Supabase schema)
-    if (error && local.customValues) {
+    if (error && local.customValues && Object.keys(local.customValues).length > 0) {
       ({ error } = await withTimeout(
         supabase.from('checkins').upsert(toSupabaseRow(local, { includeCustomValues: false }), { onConflict: 'date' }),
         8000, { error: 'timeout' },
@@ -116,9 +118,18 @@ export const syncPendingCheckins = async () => {
 
     if (!unsynced.length) return;
 
-    const { error } = await supabase
-      .from('checkins')
-      .upsert(unsynced.map(toSupabaseRow), { onConflict: 'date' });
+    let { error } = await withTimeout(
+      supabase.from('checkins').upsert(unsynced.map(toSupabaseRow), { onConflict: 'date' }),
+      10000, { error: 'timeout' },
+    );
+
+    // If column missing (custom_values not yet added), retry without it
+    if (error && unsynced.some(c => c.customValues && Object.keys(c.customValues).length > 0)) {
+      ({ error } = await withTimeout(
+        supabase.from('checkins').upsert(unsynced.map(c => toSupabaseRow(c, { includeCustomValues: false })), { onConflict: 'date' }),
+        10000, { error: 'timeout' },
+      ));
+    }
 
     if (!error) {
       for (const c of unsynced) {
@@ -138,12 +149,18 @@ export const getStreakCount = async () => {
   const keys = Array.from({ length: 365 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    return getCheckinKey(d.toISOString().split('T')[0]);
+    return getCheckinKey(localDateStr(d));
   });
   const result = await AsyncStorage.getMany(keys);
+
+  // If today isn't fully logged yet, skip it — still show the prior streak
+  const todayEntry = result[keys[0]] ? JSON.parse(result[keys[0]]) : null;
+  const todayDone = todayEntry?.oralMinoxidil === true && todayEntry?.topicalMinoxidil === true;
+  const start = todayDone ? 0 : 1;
+
   let streak = 0;
-  for (const key of keys) {
-    const entry = result[key] ? JSON.parse(result[key]) : null;
+  for (let i = start; i < keys.length; i++) {
+    const entry = result[keys[i]] ? JSON.parse(result[keys[i]]) : null;
     if (entry && entry.oralMinoxidil === true && entry.topicalMinoxidil === true) streak++;
     else break;
   }
@@ -155,7 +172,7 @@ export const getRecentCheckins = async (days = 7) => {
   const keys = Array.from({ length: days }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    return getCheckinKey(d.toISOString().split('T')[0]);
+    return getCheckinKey(localDateStr(d));
   });
   const result = await AsyncStorage.getMany(keys);
   return keys.filter(k => result[k] !== null).map(k => JSON.parse(result[k]));
@@ -166,12 +183,8 @@ export const getLast30Days = async () => {
   const meta = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (29 - i));
-    return {
-      key: getCheckinKey(d.toISOString().split('T')[0]),
-      date: d.toISOString().split('T')[0],
-      dayNum: d.getDate(),
-      month: d.getMonth(),
-    };
+    const ds = localDateStr(d);
+    return { key: getCheckinKey(ds), date: ds, dayNum: d.getDate(), month: d.getMonth() };
   });
   const result = await AsyncStorage.getMany(meta.map(m => m.key));
   return meta.map(m => ({
@@ -188,13 +201,8 @@ export const getLastNDays = async (n = 84) => {
   const meta = Array.from({ length: n }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (n - 1 - i));
-    return {
-      key: getCheckinKey(d.toISOString().split('T')[0]),
-      date: d.toISOString().split('T')[0],
-      dayNum: d.getDate(),
-      month: d.getMonth(),
-      dow: d.getDay(),
-    };
+    const ds = localDateStr(d);
+    return { key: getCheckinKey(ds), date: ds, dayNum: d.getDate(), month: d.getMonth(), dow: d.getDay() };
   });
   const result = await AsyncStorage.getMany(meta.map(m => m.key));
   return meta.map(m => ({
@@ -216,11 +224,10 @@ export const getCustomProtocols = async () => {
     const raw = await AsyncStorage.getItem(CUSTOM_PROTOCOLS_KEY);
     if (raw) return JSON.parse(raw);
 
-    const { data, error } = await supabase
-      .from('custom_protocols')
-      .select('*')
-      .eq('active', true)
-      .order('added_at', { ascending: true });
+    const { data, error } = await withTimeout(
+      supabase.from('custom_protocols').select('*').eq('active', true).order('added_at', { ascending: true }),
+      6000, { data: null, error: 'timeout' },
+    );
 
     if (error || !data) return [];
     await AsyncStorage.setItem(CUSTOM_PROTOCOLS_KEY, JSON.stringify(data));
@@ -241,16 +248,16 @@ export const addCustomProtocol = async ({ name, icon = 'lightning', dose = '', f
     await AsyncStorage.setItem(CUSTOM_PROTOCOLS_KEY, JSON.stringify(updated));
 
     try {
-      const { data, error } = await supabase
-        .from('custom_protocols')
-        .insert({ name, icon, dose, frequency, source, active: true })
-        .select()
-        .single();
+      const { data, error } = await withTimeout(
+        supabase.from('custom_protocols').insert({ name, icon, dose, frequency, source, active: true }).select().single(),
+        8000, { data: null, error: 'timeout' },
+      );
 
       if (!error && data) {
-        const synced = updated.map(p => p.id === protocol.id ? data : p);
+        // Merge: keep local fields (icon/dose/frequency), just adopt Supabase's authoritative id
+        const synced = updated.map(p => p.id === protocol.id ? { ...p, id: data.id } : p);
         await AsyncStorage.setItem(CUSTOM_PROTOCOLS_KEY, JSON.stringify(synced));
-        return data;
+        return { ...protocol, id: data.id };
       }
     } catch { /* offline — local only */ }
 

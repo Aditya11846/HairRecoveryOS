@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '../utils/fetchTimeout';
+
 const BASE = 'https://clinicaltrials.gov/api/v2/studies';
 export const DEFAULT_TRIALS_QUERY = 'androgenetic alopecia minoxidil dutasteride';
 
@@ -25,9 +27,9 @@ export async function searchClinicalTrials(query = DEFAULT_TRIALS_QUERY, pageSiz
       format: 'json',
       sort: 'LastUpdatePostDate:desc',
     });
-    const res = await fetch(`${BASE}?${params}`, {
+    const res = await fetchWithTimeout(`${BASE}?${params}`, {
       headers: { 'User-Agent': 'HairRecoveryOS/1.0' },
-    });
+    }, 15000);
     if (!res.ok) return [];
     const data = await res.json();
     const studies = data.studies || [];
