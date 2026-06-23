@@ -434,7 +434,7 @@ export default function CheckIn() {
   useFocusEffect(
     useCallback(() => {
       getCustomProtocols().then(p => setCustomProtocols(p.filter(x => x.active)));
-      getStreakCount().then(setStreak);
+      getStreakCount().then(setStreak).catch(() => {});
     }, [])
   );
 
@@ -477,7 +477,7 @@ export default function CheckIn() {
     setSaved(true);
     triggerBurst();
     setHadPrior(true);
-    getStreakCount().then(setStreak);
+    getStreakCount().then(setStreak).catch(() => {});
     cancelTodayReminder();
     setTimeout(() => setSaved(false), 3000);
   };
