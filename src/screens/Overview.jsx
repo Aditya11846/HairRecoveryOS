@@ -189,6 +189,7 @@ export default function Overview({ navigation }) {
   const [avg30dCigs, setAvg30dCigs]           = useState(null);
   const [bloodworkAt, setBloodworkAt]         = useState(null);
   const [dailyRead, setDailyRead]             = useState(null);
+  const [dailyReadLoading, setDailyReadLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -215,6 +216,7 @@ export default function Overview({ navigation }) {
           : null;
         setAvg30dCigs(cigAvg);
 
+        setDailyReadLoading(true);
         getDailyRead({
           streak: str,
           adherence7d: adh,
@@ -223,7 +225,10 @@ export default function Overview({ navigation }) {
           avg30dCigs: cigAvg,
           sleep: ci?.sleep ?? null,
           stress: ci?.stress ?? null,
-        }).then(text => { if (text) setDailyRead(text); }).catch(() => {});
+        }).then(text => {
+          if (text) setDailyRead(text);
+          setDailyReadLoading(false);
+        }).catch(() => { setDailyReadLoading(false); });
       }).catch(() => {});
     }, [])
   );
@@ -392,10 +397,17 @@ export default function Overview({ navigation }) {
       </Card>
 
       {/* 4 ── Today's read (AI) ─────────────────────────────────────────────── */}
-      {dailyRead ? (
+      {(dailyRead || dailyReadLoading) ? (
         <Card style={s.readCard}>
           <Text style={s.readEyebrow}>TODAY'S READ</Text>
-          <Text style={s.readText}>{dailyRead}</Text>
+          {dailyRead ? (
+            <Text style={s.readText}>{dailyRead}</Text>
+          ) : (
+            <View style={s.readSkeleton}>
+              <View style={s.readSkLine} />
+              <View style={[s.readSkLine, { width: '70%' }]} />
+            </View>
+          )}
         </Card>
       ) : null}
 
@@ -495,8 +507,10 @@ const s = StyleSheet.create({
 
   // Today's read
   readCard:   { marginBottom: space.md },
-  readEyebrow:{ ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 8 },
-  readText:   { fontSize: 14, fontFamily: font.body, color: color.txt, lineHeight: 21 },
+  readEyebrow:  { ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 8 },
+  readText:     { fontSize: 14, fontFamily: font.body, color: color.txt, lineHeight: 21 },
+  readSkeleton: { gap: 8, paddingTop: 2 },
+  readSkLine:   { height: 12, borderRadius: 6, backgroundColor: color.line, width: '100%' },
 
   // Signals
   signalsCard: { overflow: 'hidden', marginBottom: space.md },
