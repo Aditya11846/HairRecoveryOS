@@ -55,7 +55,7 @@ function CompletionRing({ done, total }) {
   const circ  = 2 * Math.PI * r;
   const pct   = total > 0 ? done / total : 0;
   const allDone  = done === total && total > 0;
-  const arcColor = allDone ? color.green : done > 0 ? color.warmA : color.faint;
+  const arcColor = done > 0 ? color.warmA : color.faint;
 
   return (
     <View style={ring.wrap}>
@@ -82,7 +82,7 @@ function CompletionRing({ done, total }) {
         )}
       </Svg>
       {allDone ? (
-        <Check size={20} color={color.green} />
+        <Check size={20} color={color.warmA} />
       ) : (
         <Text style={[ring.label, { color: done > 0 ? color.warmA : color.faint }]}>
           {done}/{total}
@@ -272,12 +272,12 @@ export default function Overview({ navigation }) {
   // Hero title text + color
   let heroTitle, heroTitleColor, heroSub;
   if (!todayCI) {
-    heroTitle      = `${activeMeds.length} treatments due`;
-    heroTitleColor = color.faint;
-    heroSub        = 'Nothing logged yet';
+    heroTitle      = 'Nothing logged';
+    heroTitleColor = color.txt;
+    heroSub        = `${activeMeds.length} treatments due today`;
   } else if (allDone) {
     heroTitle      = 'All done';
-    heroTitleColor = color.green;
+    heroTitleColor = color.warmA;
     heroSub        = 'Protocol complete';
   } else {
     heroTitle      = `${doneMeds} of ${activeMeds.length} done`;
@@ -500,9 +500,9 @@ const s = StyleSheet.create({
   heroInfo:  { flex: 1 },
   heroTitle: { fontFamily: font.display, fontSize: 36, letterSpacing: -1.5, lineHeight: 40, marginBottom: 6 },
   heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim },
-  logBtn:    { marginTop: 12, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8,
-               borderRadius: radius.pill, backgroundColor: color.warmA },
-  logBtnTxt: { fontSize: 12, fontWeight: '700', color: color.bg, letterSpacing: 0.2 },
+  logBtn:    { marginTop: 16, paddingVertical: 13, borderRadius: radius.row,
+               backgroundColor: color.warmA, alignItems: 'center' },
+  logBtnTxt: { fontSize: 14, fontWeight: '700', color: color.bg, letterSpacing: 0.3 },
 
   chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 14, paddingBottom: 14,
              borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line, paddingTop: 12 },
