@@ -9,6 +9,8 @@ export const color = {
   faint:  '#56565D',
   warmA:  '#FFB020',
   warmB:  '#FF6B4A',
+  amber:  '#FF9030',
+  copper: '#CF8020',
   cool:   '#5B8DEF',
   green:  '#30D158',
   red:    '#FF453A',

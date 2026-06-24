@@ -5,8 +5,9 @@ import { logger } from '../utils/logger';
 import { fetchWithTimeout, withTimeout } from '../utils/fetchTimeout';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
-const RESEARCH_LOCAL_KEY = 'research_cache_local';
-const INSIGHTS_LOCAL_KEY = 'insights_cache_local';
+const RESEARCH_LOCAL_KEY  = 'research_cache_local';
+const INSIGHTS_LOCAL_KEY  = 'insights_cache_local';
+const DAILY_READ_LOCAL_KEY = 'daily_read';
 
 const HEADERS = (apiKey) => ({
   'Content-Type': 'application/json',
@@ -66,6 +67,30 @@ async function callClaude(apiKey, system, userMsg, maxTokens = 1024) {
     }
   } catch (e) {
     logger.error('Claude', 'fetch error', e.message);
+    return { result: null, error: e.message };
+  }
+}
+
+// Returns { result: string|null, error: string|null } — for plain-text (non-JSON) responses
+async function callClaudeText(apiKey, system, userMsg, maxTokens = 200) {
+  try {
+    const res = await fetchWithTimeout(API_URL, {
+      method: 'POST',
+      headers: HEADERS(apiKey),
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: 'user', content: userMsg }],
+      }),
+    }, 20000);
+    const rawBody = await res.text();
+    if (!res.ok) return { result: null, error: `HTTP ${res.status}` };
+    let data;
+    try { data = JSON.parse(rawBody); } catch (e) { return { result: null, error: e.message }; }
+    const text = data.content?.find(b => b.type === 'text')?.text?.trim() || '';
+    return text ? { result: text, error: null } : { result: null, error: 'empty response' };
+  } catch (e) {
     return { result: null, error: e.message };
   }
 }
@@ -469,4 +494,31 @@ Focus on posts with real data, timelines, or concrete observations. No generic a
   if (isDefault) set(COMMUNITY_CACHE_KEY, { items, fetchedAt }).catch(() => {});
 
   return { items, fromCache: false, fetchedAt };
+}
+
+// ─── Feature 5: Daily Read (1–2 sentence briefing, cached per day) ───────────
+
+const DAILY_READ_SYSTEM = `You are a concise hair recovery analyst for Aditya Singh, 22, Pune.
+AGA crown-dominant Norwood ~3 vertex. Protocol: oral minoxidil 2.5mg daily, topical Novegrow 10% bedtime, dutasteride 0.5mg Mon+Thu, red light comb. Smokes.
+Reply with exactly 1-2 sentences. Surface the single most non-obvious, specific observation from the data — a pattern, a forming lapse, or the #1 actionable lever. No generic encouragement. No greeting. No protocol recap. Be direct and specific to the numbers.`;
+
+export async function getDailyRead(metrics) {
+  const _d = new Date();
+  const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
+
+  try {
+    const local = await get(DAILY_READ_LOCAL_KEY, null);
+    if (local?.date === today && local?.text) return local.text;
+  } catch {}
+
+  const apiKey = await get('api_key', '');
+  if (!apiKey) return null;
+
+  const msg = `Streak: ${metrics.streak}d. 7d adherence: ${metrics.adherence7d ?? '—'}%. Today: ${metrics.todayLogged ? 'logged' : 'not yet logged'}. Cigs today: ${metrics.cigsToday ?? 0} vs 30-day avg: ${metrics.avg30dCigs ?? '—'}. Sleep: ${metrics.sleep ?? '—'}h. Stress: ${metrics.stress ?? '—'}.`;
+
+  const { result: text } = await callClaudeText(apiKey, DAILY_READ_SYSTEM, msg, 200);
+  if (!text) return null;
+
+  set(DAILY_READ_LOCAL_KEY, { date: today, text }).catch(() => {});
+  return text;
 }
