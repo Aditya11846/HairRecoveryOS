@@ -502,8 +502,11 @@ export default function CheckIn() {
   };
 
   const appendTag = tag => {
-    const cur = form.notes;
-    field('notes')(cur + (cur.trim() ? ' · ' : '') + tag);
+    setForm(f => {
+      const cur = f.notes;
+      return { ...f, notes: cur + (cur.trim() ? ' · ' : '') + tag };
+    });
+    setSaved(false);
   };
 
   const trackable = [
