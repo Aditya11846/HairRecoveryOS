@@ -11,7 +11,7 @@ import {
   daysToCheckpoint, getLast30Days, get, set,
 } from '../utils/storage';
 import { getDailyRead } from '../services/ai';
-import { Pill, Droplet, Sun, Shield, Flask, Dna, Check, Lightning, Cigarette } from '../components/Icon';
+import { Pill, Droplet, Sun, Shield, Check, Lightning, Cigarette } from '../components/Icon';
 import Card from '../components/Card';
 import { color, type, radius, space, font } from '../theme/tokens';
 
@@ -28,18 +28,27 @@ function ra(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+const formatCachedTime = (iso) => {
+  if (!iso) return '';
+  try {
+    return 'cached ' + new Date(iso).toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    }).toLowerCase();
+  } catch { return ''; }
+};
+
 const MED = [
-  { id: 'oral',    label: 'Oral Min', Icon: Pill,    accent: color.warmA, key: 'oralMinoxidil',    timing: 'Morning' },
-  { id: 'topical', label: 'Topical',  Icon: Droplet, accent: color.warmB, key: 'topicalMinoxidil', timing: 'Bedtime' },
-  { id: 'rlc',     label: 'RLC',      Icon: Sun,     accent: color.amber, key: 'redLightComb',     timing: 'Anytime' },
-  { id: 'duta',    label: 'Duta',     Icon: Shield,  accent: color.copper,key: 'dutasteride',      timing: 'Morning' },
+  { id: 'oral',    label: 'Oral Min', fullName: 'Oral minoxidil 2.5mg',  Icon: Pill,    accent: color.warmA, key: 'oralMinoxidil',    timing: 'Morning', time: '7 AM'  },
+  { id: 'topical', label: 'Topical',  fullName: 'Topical minoxidil 10%', Icon: Droplet, accent: color.warmB, key: 'topicalMinoxidil', timing: 'Bedtime', time: '11 PM' },
+  { id: 'rlc',     label: 'RLC',      fullName: 'Red light comb',        Icon: Sun,     accent: color.amber, key: 'redLightComb',     timing: 'Anytime', time: null    },
+  { id: 'duta',    label: 'Duta',     fullName: 'Dutasteride 0.5mg',     Icon: Shield,  accent: color.copper,key: 'dutasteride',      timing: 'Morning', time: '9 AM'  },
 ];
 
-// ── Completion ring ───────────────────────────────────────────────────────────
+// ── Completion ring (ring on right — accent, not centerpiece) ─────────────────
 
 function CompletionRing({ done, total }) {
-  const SIZE  = 80;
-  const SW    = 5;
+  const SIZE  = 76;
+  const SW    = 5.5;
   const r     = (SIZE - SW * 2) / 2;
   const cx    = SIZE / 2;
   const cy    = SIZE / 2;
@@ -53,20 +62,27 @@ function CompletionRing({ done, total }) {
       <Svg width={SIZE} height={SIZE} style={StyleSheet.absoluteFill}>
         <SvgCircle cx={cx} cy={cy} r={r} stroke={color.line} strokeWidth={SW} fill="none" />
         {done > 0 && (
-          <SvgCircle
-            cx={cx} cy={cy} r={r}
-            stroke={arcColor}
-            strokeWidth={SW}
-            fill="none"
-            strokeDasharray={`${pct * circ} ${circ}`}
-            strokeLinecap="round"
-            rotation="-90"
-            origin={`${cx},${cy}`}
-          />
+          <>
+            <SvgCircle
+              cx={cx} cy={cy} r={r}
+              stroke={arcColor} strokeWidth={SW + 9} fill="none"
+              strokeDasharray={`${pct * circ} ${circ}`}
+              strokeLinecap="round"
+              rotation="-90" origin={`${cx},${cy}`}
+              opacity={0.15}
+            />
+            <SvgCircle
+              cx={cx} cy={cy} r={r}
+              stroke={arcColor} strokeWidth={SW} fill="none"
+              strokeDasharray={`${pct * circ} ${circ}`}
+              strokeLinecap="round"
+              rotation="-90" origin={`${cx},${cy}`}
+            />
+          </>
         )}
       </Svg>
       {allDone ? (
-        <Check size={22} color={color.green} />
+        <Check size={20} color={color.green} />
       ) : (
         <Text style={[ring.label, { color: done > 0 ? color.warmA : color.faint }]}>
           {done}/{total}
@@ -82,51 +98,50 @@ function MedChip({ med, status }) {
   const done    = status === 'done';
   const skipped = status === 'skipped';
   const a       = med.accent;
+  const c       = done ? a : skipped ? color.red : ra(a, 0.55);
   return (
     <View style={[
       chip.wrap,
       {
-        backgroundColor: done ? ra(a, 0.10) : skipped ? ra(color.red, 0.07) : color.card2,
-        borderColor:     done ? ra(a, 0.28) : skipped ? ra(color.red, 0.18) : color.line,
+        backgroundColor: done ? ra(a, 0.10) : skipped ? ra(color.red, 0.07) : ra(a, 0.06),
+        borderColor:     done ? ra(a, 0.28) : skipped ? ra(color.red, 0.18) : ra(a, 0.16),
       },
     ]}>
-      <med.Icon size={14} color={done ? a : skipped ? color.red : color.faint} />
-      <Text style={[chip.label, { color: done ? a : skipped ? color.red : color.dim }]}>
-        {med.label}
-      </Text>
-      <Text style={[chip.status, { color: done ? a : skipped ? color.red : color.faint }]}>
-        {done ? '✓' : skipped ? '✕' : '—'}
-      </Text>
+      <med.Icon size={13} color={c} />
+      <Text style={[chip.label, { color: c }]}>{med.label}</Text>
+      {done    && <Text style={[chip.status, { color: a }]}>✓</Text>}
+      {skipped && <Text style={[chip.status, { color: color.red }]}>✕</Text>}
     </View>
   );
 }
 
-// ── Signal row ────────────────────────────────────────────────────────────────
+// ── Signal card (each signal is its own Card) ─────────────────────────────────
 
-function SignalRow({ IconComp, iconColor, text, last }) {
+function SignalCard({ Ic, c, bold, text, tag }) {
   return (
-    <View style={[sig.row, !last && sig.border]}>
-      <View style={[sig.dot, { backgroundColor: ra(iconColor, 0.12), borderColor: ra(iconColor, 0.20) }]}>
-        <IconComp size={13} color={iconColor} />
+    <Card style={sig.card}>
+      <View style={sig.row}>
+        <View style={[sig.icon, { backgroundColor: ra(c, 0.12), borderColor: ra(c, 0.20) }]}>
+          <Ic size={14} color={c} />
+        </View>
+        <Text style={sig.text}>
+          <Text style={sig.bold}>{bold}</Text>
+          <Text>{text}</Text>
+        </Text>
+        {tag ? <Text style={sig.tag}>{tag}</Text> : null}
       </View>
-      <Text style={sig.text}>{text}</Text>
-    </View>
+    </Card>
   );
 }
 
-// ── Coming-up row ─────────────────────────────────────────────────────────────
+// ── Coming-up row (date tag + label + right value, no icon) ───────────────────
 
-function AheadRow({ IconComp, iconColor, label, desc, value, last }) {
+function AheadRow({ dateTag, label, value, last }) {
   return (
     <View style={[ah.row, !last && ah.border]}>
-      <View style={[ah.iconBox, { backgroundColor: ra(iconColor, 0.10), borderColor: ra(iconColor, 0.18) }]}>
-        <IconComp size={15} color={iconColor} />
-      </View>
-      <View style={ah.body}>
-        <Text style={ah.label}>{label}</Text>
-        {desc ? <Text style={ah.desc}>{desc}</Text> : null}
-      </View>
-      {value ? <Text style={[ah.value, { color: iconColor }]}>{value}</Text> : null}
+      <Text style={ah.tag}>{dateTag}</Text>
+      <Text style={ah.label}>{label}</Text>
+      {value ? <Text style={ah.value}>{value}</Text> : null}
     </View>
   );
 }
@@ -181,14 +196,14 @@ function RecoveryEntryModal({ visible, current, onSave, onClose }) {
 export default function Overview({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const [todayCI, setTodayCI]                 = useState(null);
-  const [streak, setStreak]                   = useState(0);
-  const [adherence7d, setAdherence7d]         = useState(null);
-  const [recoveryLog, setRecoveryLog]         = useState([]);
-  const [editingRecovery, setEditingRecovery] = useState(false);
-  const [avg30dCigs, setAvg30dCigs]           = useState(null);
-  const [bloodworkAt, setBloodworkAt]         = useState(null);
-  const [dailyRead, setDailyRead]             = useState(null);
+  const [todayCI, setTodayCI]                   = useState(null);
+  const [streak, setStreak]                     = useState(0);
+  const [adherence7d, setAdherence7d]           = useState(null);
+  const [recoveryLog, setRecoveryLog]           = useState([]);
+  const [editingRecovery, setEditingRecovery]   = useState(false);
+  const [avg30dCigs, setAvg30dCigs]             = useState(null);
+  const [bloodworkAt, setBloodworkAt]           = useState(null);
+  const [dailyRead, setDailyRead]               = useState(null);   // { observe, action, cachedAt } | null
   const [dailyReadLoading, setDailyReadLoading] = useState(false);
 
   useFocusEffect(
@@ -210,23 +225,19 @@ export default function Overview({ navigation }) {
         setRecoveryLog(Array.isArray(rlog) ? rlog : []);
         setBloodworkAt(bw?.testedAt || null);
 
-        const withData  = last30.filter(d => d.data !== null);
-        const cigAvg    = withData.length > 0
+        const withData = last30.filter(d => d.data !== null);
+        const cigAvg   = withData.length > 0
           ? parseFloat((withData.reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / withData.length).toFixed(1))
           : null;
         setAvg30dCigs(cigAvg);
 
         setDailyReadLoading(true);
         getDailyRead({
-          streak: str,
-          adherence7d: adh,
-          todayLogged: ci !== null,
-          cigsToday: ci?.cigarettes ?? 0,
-          avg30dCigs: cigAvg,
-          sleep: ci?.sleep ?? null,
-          stress: ci?.stress ?? null,
-        }).then(text => {
-          if (text) setDailyRead(text);
+          streak: str, adherence7d: adh, todayLogged: ci !== null,
+          cigsToday: ci?.cigarettes ?? 0, avg30dCigs: cigAvg,
+          sleep: ci?.sleep ?? null, stress: ci?.stress ?? null,
+        }).then(res => {
+          if (res) setDailyRead(res);
           setDailyReadLoading(false);
         }).catch(() => { setDailyReadLoading(false); });
       }).catch(() => {});
@@ -239,9 +250,9 @@ export default function Overview({ navigation }) {
   const currentRecovery = arcData.length ? arcData[arcData.length - 1].value : null;
   const peakRecovery    = arcData.length ? Math.max(...arcData.map(e => e.value)) : null;
 
-  const dayNum     = Math.max(1, Math.ceil((new Date() - CAMPAIGN_START) / 86400000));
-  const daysLeft   = daysToCheckpoint();
-  const isDuta     = isDutaDay();
+  const dayNum   = Math.max(1, Math.ceil((new Date() - CAMPAIGN_START) / 86400000));
+  const daysLeft = daysToCheckpoint();
+  const isDuta   = isDutaDay();
   const activeMeds = MED.filter(m => m.id !== 'duta' || isDuta);
 
   const medStatus = (key) => {
@@ -258,54 +269,51 @@ export default function Overview({ navigation }) {
     : adherence7d >= 50 ? color.dim
     : color.red;
 
-  // Bloodwork coming-up state
-  let bloodworkLabel, bloodworkDesc, bloodworkVal;
-  if (!bloodworkAt) {
-    bloodworkLabel = 'No bloodwork on file';
-    bloodworkDesc  = 'Schedule first panel';
-    bloodworkVal   = null;
+  // Hero title text + color
+  let heroTitle, heroTitleColor, heroSub;
+  if (!todayCI) {
+    heroTitle      = `${activeMeds.length} treatments due`;
+    heroTitleColor = color.faint;
+    heroSub        = 'Nothing logged yet';
+  } else if (allDone) {
+    heroTitle      = 'All done';
+    heroTitleColor = color.green;
+    heroSub        = 'Protocol complete';
   } else {
-    const nextDate   = new Date(bloodworkAt);
-    nextDate.setDate(nextDate.getDate() + 90);
-    const daysUntil  = Math.ceil((nextDate - new Date()) / 86400000);
-    if (daysUntil < 0) {
-      bloodworkLabel = 'Bloodwork overdue';
-      bloodworkDesc  = `${Math.abs(daysUntil)}d past due`;
-      bloodworkVal   = null;
-    } else {
-      bloodworkLabel = 'Next bloodwork';
-      bloodworkDesc  = daysUntil <= 14 ? 'Due soon' : null;
-      bloodworkVal   = `${daysUntil}d`;
-    }
+    heroTitle      = `${doneMeds} of ${activeMeds.length} done`;
+    heroTitleColor = color.warmA;
+    heroSub        = nextDueMed ? `${nextDueMed.label} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : 'this morning'} · ${nextDueMed.time ?? nextDueMed.timing}` : '';
   }
 
-  // TODAY hero text
-  let heroTitle, heroSub;
-  if (!todayCI) {
-    heroTitle = `${activeMeds.length} treatments due`;
-    heroSub   = 'Nothing logged yet';
-  } else if (allDone) {
-    heroTitle = 'All logged today';
-    heroSub   = 'Protocol complete';
-  } else {
-    heroTitle = `${doneMeds} of ${activeMeds.length} done`;
-    heroSub   = nextDueMed ? `Next: ${nextDueMed.label} · ${nextDueMed.timing}` : '';
+  // Bloodwork
+  let bloodworkTag = 'Soon', bloodworkLabel = 'Schedule first bloodwork', bloodworkVal = null;
+  if (bloodworkAt) {
+    const nextDate  = new Date(bloodworkAt);
+    nextDate.setDate(nextDate.getDate() + 90);
+    const daysUntil = Math.ceil((nextDate - new Date()) / 86400000);
+    bloodworkTag    = nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    bloodworkLabel  = daysUntil < 0 ? 'Bloodwork overdue' : 'Bloodwork — 7 markers due';
+    bloodworkVal    = daysUntil < 0 ? `${Math.abs(daysUntil)}d past` : `${daysUntil}d`;
   }
+
+  const checkpointTag = CAMPAIGN_END.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   // Signals
   const signals = [];
   if (streak > 0 && !todayCI) {
-    signals.push({ key: 'risk', Ic: Lightning, c: color.amber, text: `Streak at risk — log today to keep your ${streak}-day run` });
+    signals.push({ key: 'risk', Ic: Lightning, c: color.amber, bold: 'Streak at risk', text: ` — log today to keep your ${streak}-day run`, tag: null });
   } else if (streak > 0 && allDone) {
-    signals.push({ key: 'streak', Ic: Check, c: color.green, text: `${streak}-day streak secured` });
+    signals.push({ key: 'streak', Ic: Check, c: color.green, bold: 'Streak secured', text: ` through today. Day ${streak} — keep building.`, tag: null });
   }
   if ((todayCI?.cigarettes ?? 0) > 0 && avg30dCigs != null) {
-    const n = todayCI.cigarettes;
-    signals.push({ key: 'cigs', Ic: Cigarette, c: color.red, text: `${n} cig${n !== 1 ? 's' : ''} today vs ${avg30dCigs} 30-day avg — #1 modifiable lever` });
+    const n       = todayCI.cigarettes;
+    const diff    = parseFloat((n - avg30dCigs).toFixed(1));
+    const compare = diff <= 0 ? 'on track to beat your avg' : `${diff} above your avg`;
+    signals.push({ key: 'cigs', Ic: Cigarette, c: color.red, bold: `${n} cigarette${n !== 1 ? 's' : ''}`, text: ` so far — ${compare}`, tag: '#1\nlever' });
   }
 
   const handleSaveRecovery = async (value) => {
-    const today   = getTodayKey();
+    const today    = getTodayKey();
     const existing = recoveryLog.filter(e => e.date !== today);
     const updated  = [...existing, { date: today, value }].sort((a, b) => a.date.localeCompare(b.date));
     await set('recovery_log', updated);
@@ -327,10 +335,7 @@ export default function Overview({ navigation }) {
       <Card flush style={s.nsCard}>
         <View style={s.nsRow}>
           <TouchableOpacity style={s.nsMain} onPress={() => navigation.navigate('Progress')} activeOpacity={0.75}>
-            <View style={s.nsNumWrap}>
-              <Text style={s.nsNum}>{currentRecovery != null ? Math.round(currentRecovery) : '—'}</Text>
-              {currentRecovery != null && <Text style={s.nsUnit}>%</Text>}
-            </View>
+            <Text style={s.nsNum}>{currentRecovery != null ? `${Math.round(currentRecovery)}%` : '—'}</Text>
             <View style={s.nsBarOuter}>
               <View style={s.nsTrack}>
                 <View style={[s.nsFill, { width: currentRecovery ? `${Math.min(currentRecovery, 100)}%` : '0%' }]} />
@@ -351,22 +356,18 @@ export default function Overview({ navigation }) {
 
       {/* 3 ── TODAY hero ─────────────────────────────────────────────────────── */}
       <Card flush style={s.heroCard}>
-        {/* Ring + status */}
+        {/* Title row: BIG text LEFT, ring RIGHT */}
         <View style={s.heroTop}>
-          <CompletionRing done={doneMeds} total={activeMeds.length} />
           <View style={s.heroInfo}>
-            <Text style={s.heroTitle}>{heroTitle}</Text>
+            <Text style={[s.heroTitle, { color: heroTitleColor }]}>{heroTitle}</Text>
             <Text style={s.heroSub}>{heroSub}</Text>
             {!todayCI && (
-              <TouchableOpacity
-                style={s.logBtn}
-                onPress={() => navigation.navigate('Check-in')}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={s.logBtn} onPress={() => navigation.navigate('Check-in')} activeOpacity={0.8}>
                 <Text style={s.logBtnTxt}>Log today</Text>
               </TouchableOpacity>
             )}
           </View>
+          <CompletionRing done={doneMeds} total={activeMeds.length} />
         </View>
 
         {/* Treatment chips */}
@@ -399,13 +400,30 @@ export default function Overview({ navigation }) {
       {/* 4 ── Today's read (AI) ─────────────────────────────────────────────── */}
       {(dailyRead || dailyReadLoading) ? (
         <Card style={s.readCard}>
-          <Text style={s.readEyebrow}>TODAY'S READ</Text>
+          {/* Header: icon + eyebrow + cached time */}
+          <View style={s.readHeader}>
+            <View style={s.readIconBox}>
+              <Lightning size={13} color={color.warmA} />
+            </View>
+            <Text style={s.readEyebrow}>TODAY'S READ</Text>
+            {dailyRead?.cachedAt ? (
+              <Text style={s.readCached}>{formatCachedTime(dailyRead.cachedAt)}</Text>
+            ) : null}
+          </View>
+          {/* Body: two-tone or skeleton */}
           {dailyRead ? (
-            <Text style={s.readText}>{dailyRead}</Text>
+            <Text style={s.readBody}>
+              {dailyRead.observe ? (
+                <>
+                  <Text style={s.readObserve}>{dailyRead.observe}{dailyRead.action ? ' ' : ''}</Text>
+                  {dailyRead.action ? <Text style={s.readAction}>{dailyRead.action}</Text> : null}
+                </>
+              ) : null}
+            </Text>
           ) : (
-            <View style={s.readSkeleton}>
-              <View style={s.readSkLine} />
-              <View style={[s.readSkLine, { width: '70%' }]} />
+            <View style={s.skeletonWrap}>
+              <View style={s.skLine} />
+              <View style={[s.skLine, { width: '75%' }]} />
             </View>
           )}
         </Card>
@@ -413,11 +431,10 @@ export default function Overview({ navigation }) {
 
       {/* 5 ── Signals ────────────────────────────────────────────────────────── */}
       {signals.length > 0 ? (
-        <Card flush style={s.signalsCard}>
-          {signals.map((sig, i) => (
-            <SignalRow key={sig.key} IconComp={sig.Ic} iconColor={sig.c} text={sig.text} last={i === signals.length - 1} />
-          ))}
-        </Card>
+        <>
+          <Text style={s.sectionLabel}>TODAY'S SIGNALS</Text>
+          {signals.map(sig => <SignalCard key={sig.key} {...sig} />)}
+        </>
       ) : null}
 
       {/* 6 ── Coming up ──────────────────────────────────────────────────────── */}
@@ -425,25 +442,19 @@ export default function Overview({ navigation }) {
       <Card flush>
         {(!allDone && nextDueMed) ? (
           <AheadRow
-            IconComp={nextDueMed.Icon}
-            iconColor={nextDueMed.accent}
-            label={nextDueMed.label}
-            desc={nextDueMed.timing}
-            value="Today"
+            dateTag={nextDueMed.timing === 'Bedtime' ? 'Tonight' : 'Today'}
+            label={nextDueMed.fullName}
+            value={nextDueMed.time ?? nextDueMed.timing}
           />
         ) : null}
         <AheadRow
-          IconComp={Flask}
-          iconColor={!bloodworkAt ? color.faint : color.cool}
+          dateTag={bloodworkTag}
           label={bloodworkLabel}
-          desc={bloodworkDesc}
           value={bloodworkVal}
         />
         <AheadRow
-          IconComp={Dna}
-          iconColor={color.warmA}
+          dateTag={checkpointTag}
           label="Phase 1 checkpoint"
-          desc="Sep 1, 2026"
           value={`${daysLeft}d`}
           last
         />
@@ -465,16 +476,14 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
 
   eyebrow: { ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 6 },
-  title:   { ...type.screenTitle, color: color.warmA, marginBottom: 20 },
+  title:   { ...type.screenTitle, color: color.txt, marginBottom: 20 },
 
   // North-star strip
   nsCard:      { overflow: 'hidden', marginBottom: space.md },
   nsRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: space.lg },
   nsMain:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nsNumWrap:   { flexDirection: 'row', alignItems: 'flex-end', gap: 2, minWidth: 56 },
-  nsNum:       { fontFamily: font.display, fontSize: 32, letterSpacing: -1.5, color: color.warmA,
+  nsNum:       { fontFamily: font.display, fontSize: 30, letterSpacing: -1.5, color: color.warmA,
                  textShadowColor: ra(color.warmA, 0.30), textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 },
-  nsUnit:      { fontFamily: font.displaySemi, fontSize: 16, letterSpacing: -0.5, color: color.warmA, marginBottom: 5 },
   nsBarOuter:  { flex: 1, gap: 7 },
   nsTrack:     { height: 4, backgroundColor: color.card2, borderRadius: 2, overflow: 'visible' },
   nsFill:      { height: 4, backgroundColor: color.warmA, borderRadius: 2 },
@@ -487,70 +496,73 @@ const s = StyleSheet.create({
 
   // TODAY hero
   heroCard:  { overflow: 'hidden', marginBottom: space.md },
-  heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 18, paddingBottom: 14 },
+  heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 20, paddingBottom: 16 },
   heroInfo:  { flex: 1 },
-  heroTitle: { fontFamily: font.displaySemi, fontSize: 20, letterSpacing: -0.4, color: color.txt, marginBottom: 4 },
-  heroSub:   { fontSize: 13, color: color.dim, fontFamily: font.body },
-  logBtn:    { marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 7,
+  heroTitle: { fontFamily: font.display, fontSize: 36, letterSpacing: -1.5, lineHeight: 40, marginBottom: 6 },
+  heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim },
+  logBtn:    { marginTop: 12, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8,
                borderRadius: radius.pill, backgroundColor: color.warmA },
   logBtnTxt: { fontSize: 12, fontWeight: '700', color: color.bg, letterSpacing: 0.2 },
 
-  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 12,
-             paddingTop: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
+  chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 14, paddingBottom: 14,
+             borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line, paddingTop: 12 },
 
   statsRow: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  stat:     { flex: 1, alignItems: 'center', paddingVertical: 13, gap: 3 },
+  stat:     { flex: 1, alignItems: 'center', paddingVertical: 12, gap: 3 },
   statDiv:  { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 10 },
-  statNum:  { fontFamily: font.display, fontSize: 24, letterSpacing: -1, lineHeight: 28 },
-  statUnit: { fontFamily: font.displaySemi, fontSize: 13, letterSpacing: -0.3, marginBottom: 3 },
+  statNum:  { fontFamily: font.display, fontSize: 22, letterSpacing: -1, lineHeight: 26 },
+  statUnit: { fontFamily: font.displaySemi, fontSize: 12, letterSpacing: -0.3, marginBottom: 2 },
   statLbl:  { ...type.eyebrow, fontSize: 8 },
 
   // Today's read
   readCard:   { marginBottom: space.md },
-  readEyebrow:  { ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 8 },
-  readText:     { fontSize: 14, fontFamily: font.body, color: color.txt, lineHeight: 21 },
-  readSkeleton: { gap: 8, paddingTop: 2 },
-  readSkLine:   { height: 12, borderRadius: 6, backgroundColor: color.line, width: '100%' },
+  readHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  readIconBox:{ width: 26, height: 26, borderRadius: 8, backgroundColor: ra(color.warmA, 0.14),
+                alignItems: 'center', justifyContent: 'center' },
+  readEyebrow:{ ...type.eyebrow, color: color.faint, flex: 1 },
+  readCached: { ...type.eyebrow, fontSize: 8, color: color.faint },
+  readBody:   { fontSize: 14, lineHeight: 22 },
+  readObserve:{ fontFamily: font.body, color: color.dim },
+  readAction: { fontFamily: font.bodyMed, color: color.warmA },
+  skeletonWrap:{ gap: 8, paddingTop: 2 },
+  skLine:     { height: 11, borderRadius: 6, backgroundColor: color.line, width: '100%' },
 
   // Signals
-  signalsCard: { overflow: 'hidden', marginBottom: space.md },
+  sectionLabel: { ...type.eyebrow, color: color.faint, marginBottom: 10, marginTop: 4 },
 
-  // Section label
-  sectionLabel: { ...type.eyebrow, color: color.faint, marginBottom: 10, marginTop: 8 },
+  // Coming up
 });
 
 const ring = StyleSheet.create({
-  wrap:  { width: 80, height: 80, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: font.displaySemi, fontSize: 18, letterSpacing: -0.5 },
+  wrap:  { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  label: { fontFamily: font.displaySemi, fontSize: 17, letterSpacing: -0.5 },
 });
 
 const chip = StyleSheet.create({
   wrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-            gap: 5, paddingVertical: 9, paddingHorizontal: 4, borderRadius: radius.row,
+            gap: 4, paddingVertical: 9, paddingHorizontal: 4, borderRadius: radius.row,
             borderWidth: StyleSheet.hairlineWidth },
-  label:  { fontSize: 11, fontWeight: '600', letterSpacing: 0.1 },
-  status: { fontSize: 12, fontWeight: '700' },
+  label:  { fontSize: 11, fontFamily: font.bodyMed, letterSpacing: 0.1 },
+  status: { fontSize: 11, fontFamily: font.bodyMed },
 });
 
 const sig = StyleSheet.create({
-  row:    { flexDirection: 'row', alignItems: 'center', gap: 12,
-            paddingVertical: 13, paddingHorizontal: space.lg },
-  border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
-  dot:    { width: 30, height: 30, borderRadius: radius.row, alignItems: 'center', justifyContent: 'center',
-            borderWidth: StyleSheet.hairlineWidth, flexShrink: 0 },
-  text:   { flex: 1, fontSize: 13, fontFamily: font.body, color: color.txt, lineHeight: 18 },
+  card: { marginBottom: 8 },
+  row:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  icon: { width: 32, height: 32, borderRadius: radius.row, alignItems: 'center', justifyContent: 'center',
+          borderWidth: StyleSheet.hairlineWidth, flexShrink: 0 },
+  text: { flex: 1, fontSize: 14, lineHeight: 20, fontFamily: font.body, color: color.txt },
+  bold: { fontFamily: font.bodyMed, color: color.txt },
+  tag:  { fontSize: 8.5, fontFamily: font.mono, color: color.faint, textAlign: 'right', lineHeight: 12 },
 });
 
 const ah = StyleSheet.create({
-  row:     { flexDirection: 'row', alignItems: 'center', gap: 12,
-             paddingVertical: 13, paddingHorizontal: space.lg },
-  border:  { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
-  iconBox: { width: 34, height: 34, borderRadius: radius.row, alignItems: 'center', justifyContent: 'center',
-             borderWidth: StyleSheet.hairlineWidth, flexShrink: 0 },
-  body:    { flex: 1 },
-  label:   { ...type.bodyStrong },
-  desc:    { fontSize: 12, color: color.dim, marginTop: 2 },
-  value:   { fontFamily: font.mono, fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
+  row:    { flexDirection: 'row', alignItems: 'center', gap: 14,
+            paddingVertical: 14, paddingHorizontal: space.lg },
+  border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
+  tag:    { fontFamily: font.mono, fontSize: 10, color: color.warmA, letterSpacing: 0.3, minWidth: 42 },
+  label:  { flex: 1, ...type.bodyStrong },
+  value:  { fontFamily: font.mono, fontSize: 12, color: color.faint, letterSpacing: 0.2 },
 });
 
 const rem = StyleSheet.create({

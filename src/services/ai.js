@@ -500,15 +500,21 @@ Focus on posts with real data, timelines, or concrete observations. No generic a
 
 const DAILY_READ_SYSTEM = `You are a concise hair recovery analyst for Aditya Singh, 22, Pune.
 AGA crown-dominant Norwood ~3 vertex. Protocol: oral minoxidil 2.5mg daily, topical Novegrow 10% bedtime, dutasteride 0.5mg Mon+Thu, red light comb. Smokes.
-Reply with exactly 1-2 sentences. Surface the single most non-obvious, specific observation from the data — a pattern, a forming lapse, or the #1 actionable lever. No generic encouragement. No greeting. No protocol recap. Be direct and specific to the numbers.`;
+Return ONLY a JSON object (no markdown, no code fences, no other text):
+{"observe":"one factual sentence about a specific pattern in the numbers","action":"one sentence — the most impactful non-obvious insight or action lever right now, precise and urgent"}
+Be direct, specific to the numbers. No generic advice. No greeting.`;
 
+// Returns { observe, action, cachedAt } | null
 export async function getDailyRead(metrics) {
   const _d = new Date();
   const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
 
   try {
     const local = await get(DAILY_READ_LOCAL_KEY, null);
-    if (local?.date === today && local?.text) return local.text;
+    if (local?.date === today) {
+      if (local.observe) return { observe: local.observe, action: local.action || '', cachedAt: local.cachedAt || '' };
+      if (local.text)    return { observe: local.text, action: '', cachedAt: '' }; // backwards compat
+    }
   } catch {}
 
   const apiKey = await get('api_key', '');
@@ -516,9 +522,16 @@ export async function getDailyRead(metrics) {
 
   const msg = `Streak: ${metrics.streak}d. 7d adherence: ${metrics.adherence7d ?? '—'}%. Today: ${metrics.todayLogged ? 'logged' : 'not yet logged'}. Cigs today: ${metrics.cigsToday ?? 0} vs 30-day avg: ${metrics.avg30dCigs ?? '—'}. Sleep: ${metrics.sleep ?? '—'}h. Stress: ${metrics.stress ?? '—'}.`;
 
-  const { result: text } = await callClaudeText(apiKey, DAILY_READ_SYSTEM, msg, 200);
-  if (!text) return null;
+  const { result: rawText } = await callClaudeText(apiKey, DAILY_READ_SYSTEM, msg, 300);
+  if (!rawText) return null;
 
-  set(DAILY_READ_LOCAL_KEY, { date: today, text }).catch(() => {});
-  return text;
+  let observe = rawText.trim(), action = '';
+  try {
+    const obj = JSON.parse(rawText.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim());
+    if (obj?.observe) { observe = obj.observe; action = obj.action || ''; }
+  } catch {}
+
+  const cachedAt = new Date().toISOString();
+  set(DAILY_READ_LOCAL_KEY, { date: today, observe, action, cachedAt }).catch(() => {});
+  return { observe, action, cachedAt };
 }
