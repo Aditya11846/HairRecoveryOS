@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal,
   TextInput, KeyboardAvoidingView, Platform,
@@ -13,12 +13,14 @@ import { Pill, Droplet, Sun, Shield } from '../components/Icon';
 import RecoveryArc from '../components/RecoveryArc';
 import SectionHeader from '../components/SectionHeader';
 import Card from '../components/Card';
-import { color, type, radius, space } from '../theme/tokens';
+import { color, type, radius, space, font } from '../theme/tokens';
 
-const isDutaDay = (d = new Date()) => d.getDay() === 1 || d.getDay() === 4;
+const CAMPAIGN_START = new Date('2026-06-01');
+const CAMPAIGN_END   = new Date('2026-09-01');
+const TOTAL_DAYS     = Math.ceil((CAMPAIGN_END - CAMPAIGN_START) / 86400000);
 
-const STRESS_LABEL = ['', 'None', 'Low', 'Med', 'High', 'Extreme'];
-const DOW_LETTER   = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const isDutaDay     = (d = new Date()) => d.getDay() === 1 || d.getDay() === 4;
+const STRESS_LABEL  = ['', 'None', 'Low', 'Med', 'High', 'Extreme'];
 
 function ra(hex, a) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -28,15 +30,15 @@ function ra(hex, a) {
 }
 
 const MED = [
-  { id: 'oral',    label: 'Oral Min',  Icon: Pill,    accent: '#FFB020', key: 'oralMinoxidil' },
-  { id: 'topical', label: 'Topical',   Icon: Droplet, accent: '#FF6B4A', key: 'topicalMinoxidil' },
-  { id: 'rlc',     label: 'RLC',       Icon: Sun,     accent: '#FF9030', key: 'redLightComb' },
-  { id: 'duta',    label: 'Duta',      Icon: Shield,  accent: '#CF8020', key: 'dutasteride' },
+  { id: 'oral',    label: 'Oral Min', Icon: Pill,    accent: '#FFB020', key: 'oralMinoxidil' },
+  { id: 'topical', label: 'Topical',  Icon: Droplet, accent: '#FF6B4A', key: 'topicalMinoxidil' },
+  { id: 'rlc',     label: 'RLC',      Icon: Sun,     accent: '#FF9030', key: 'redLightComb' },
+  { id: 'duta',    label: 'Duta',     Icon: Shield,  accent: '#CF8020', key: 'dutasteride' },
 ];
 
-// ── Today Med Chip ────────────────────────────────────────────────────────────
+// ── Med Chip ──────────────────────────────────────────────────────────────────
 
-function TodayMedChip({ med, status }) {
+function MedChip({ med, status }) {
   const taken   = status === 'done';
   const skipped = status === 'skipped';
   const a       = med.accent;
@@ -48,64 +50,13 @@ function TodayMedChip({ med, status }) {
         borderColor:     taken ? ra(a, 0.28) : skipped ? 'rgba(255,69,58,0.18)' : color.line,
       },
     ]}>
-      <med.Icon size={13} color={taken ? a : skipped ? color.red : color.faint} />
-      <Text style={[chip.name, { color: taken ? a : skipped ? color.red : color.dim }]}>{med.label}</Text>
-      <Text style={[chip.badge, { color: taken ? a : skipped ? color.red : color.faint }]}>
+      <med.Icon size={14} color={taken ? a : skipped ? color.red : color.faint} />
+      <Text style={[chip.label, { color: taken ? a : skipped ? color.red : color.dim }]}>
+        {med.label}
+      </Text>
+      <Text style={[chip.status, { color: taken ? a : skipped ? color.red : color.faint }]}>
         {taken ? '✓' : skipped ? '✕' : '—'}
       </Text>
-    </View>
-  );
-}
-
-// ── Week Dots ─────────────────────────────────────────────────────────────────
-
-function WeekDots({ days }) {
-  return (
-    <View style={wd.row}>
-      {days.map((d, i) => {
-        const logged = d.entry && (d.entry.oralMinoxidil || d.entry.topicalMinoxidil);
-        const isToday = i === days.length - 1;
-        return (
-          <View key={i} style={wd.item}>
-            <Text style={[wd.dow, isToday && { color: color.warmA }]}>{DOW_LETTER[d.dow]}</Text>
-            <View style={[
-              wd.dot,
-              logged && wd.dotLogged,
-              isToday && !logged && wd.dotToday,
-            ]} />
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-// ── Adherence Bar ─────────────────────────────────────────────────────────────
-
-function AdherenceBar({ med, pct, last }) {
-  const hasData = pct > 0;
-  return (
-    <View style={[ab.row, !last && ab.border]}>
-      <View style={[ab.strip, { backgroundColor: hasData ? med.accent : color.faint, opacity: hasData ? 1 : 0.3 }]} />
-      <med.Icon size={13} color={hasData ? med.accent : color.faint} />
-      <Text style={[ab.name, { color: hasData ? color.txt : color.dim }]}>{med.label}</Text>
-      <View style={ab.track}>
-        <View style={[ab.fill, { width: `${pct}%`, backgroundColor: med.accent }]} />
-      </View>
-      <Text style={[ab.pct, { color: pct >= 80 ? med.accent : pct >= 50 ? color.dim : color.faint }]}>
-        {pct}%
-      </Text>
-    </View>
-  );
-}
-
-// ── Life Stat Cell ────────────────────────────────────────────────────────────
-
-function LifeStatCell({ label, value, accent }) {
-  return (
-    <View style={ls.cell}>
-      <Text style={[ls.val, accent ? { color: accent } : {}]} numberOfLines={1}>{value ?? '—'}</Text>
-      <Text style={ls.label}>{label}</Text>
     </View>
   );
 }
@@ -162,6 +113,7 @@ export default function Overview() {
 
   const [todayCI, setTodayCI]                 = useState(null);
   const [streak, setStreak]                   = useState(0);
+  const [adherence7d, setAdherence7d]         = useState(null);
   const [recoveryLog, setRecoveryLog]         = useState([]);
   const [editingRecovery, setEditingRecovery] = useState(false);
   const [rec7Raw, setRec7Raw]                 = useState([]);
@@ -178,69 +130,45 @@ export default function Overview() {
         setTodayCI(ci);
         setStreak(str);
         setRec7Raw(Array.isArray(rec7) ? rec7 : []);
+        const full = rec7.filter(c => c.oralMinoxidil && c.topicalMinoxidil).length;
+        setAdherence7d(rec7.length ? Math.round((full / rec7.length) * 100) : null);
         setRecoveryLog(Array.isArray(rlog) ? rlog : []);
       }).catch(() => {});
     }, [])
   );
 
-  // Recovery arc
+  // ── Derived values ──────────────────────────────────────────────────────────
+
   const arcData         = recoveryLog.map(e => ({ date: e.date, value: e.value }));
   const currentRecovery = arcData.length ? arcData[arcData.length - 1].value : null;
   const peakIndex       = arcData.length
     ? arcData.reduce((mi, e, i, a) => e.value > a[mi].value ? i : mi, 0)
     : null;
-  const projData        = arcData.length ? [...arcData, { date: '2026-09-01', value: 100 }] : [];
-  const projectionFrom  = arcData.length || undefined;
-  const arcXLabels      = arcData.length >= 2
+  const projData       = arcData.length ? [...arcData, { date: '2026-09-01', value: 100 }] : [];
+  const projectionFrom = arcData.length || undefined;
+  const arcXLabels     = arcData.length >= 2
     ? [new Date(arcData[0].date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), 'now', "Sep '26"]
     : [];
-  const prevChange      = arcData.length >= 2
+  const prevChange = arcData.length >= 2
     ? arcData[arcData.length - 1].value - arcData[arcData.length - 2].value
     : null;
 
-  // Today
-  const isDuta = isDutaDay();
+  const dayNum      = Math.max(1, Math.ceil((new Date() - CAMPAIGN_START) / 86400000));
+  const days        = daysToCheckpoint();
+  const campaignPct = Math.min(98, Math.round((dayNum / TOTAL_DAYS) * 100));
+
+  const isDuta     = isDutaDay();
   const activeMeds = MED.filter(m => m.id !== 'duta' || isDuta);
   const medStatus  = (key) => {
     if (!todayCI) return 'pending';
     return todayCI[key] === true ? 'done' : todayCI[key] === false ? 'skipped' : 'pending';
   };
 
-  // 7-day dot grid — all 7 days, not just logged ones
-  const entries7 = useMemo(() => {
-    const map = new Map(rec7Raw.map(c => [c.date, c]));
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const yyyy = d.getFullYear();
-      const mm   = String(d.getMonth() + 1).padStart(2, '0');
-      const dd   = String(d.getDate()).padStart(2, '0');
-      const date = `${yyyy}-${mm}-${dd}`;
-      return { date, dow: d.getDay(), entry: map.get(date) || null };
-    });
-  }, [rec7Raw]);
-
-  const medAdherence = (key) => {
-    if (!rec7Raw.length) return 0;
-    return Math.round((rec7Raw.filter(c => c?.[key] === true).length / rec7Raw.length) * 100);
-  };
-
-  // Lifestyle 7d averages
-  const sleepEntries  = rec7Raw.filter(c => typeof c?.sleep === 'number');
-  const stressEntries = rec7Raw.filter(c => typeof c?.stress === 'number' && c.stress > 0);
-  const avgSleep      = sleepEntries.length
-    ? (sleepEntries.reduce((s, c) => s + c.sleep, 0) / sleepEntries.length).toFixed(1)
-    : null;
-  const avgStressNum  = stressEntries.length
-    ? Math.round(stressEntries.reduce((s, c) => s + c.stress, 0) / stressEntries.length)
-    : null;
-  const avgCigsNum    = rec7Raw.length
-    ? rec7Raw.reduce((s, c) => s + (c?.cigarettes ?? 0), 0) / rec7Raw.length
-    : null;
-  const sheddingDays  = rec7Raw.filter(c => c?.sheddingNoticed === true).length;
-
-  const days   = daysToCheckpoint();
-  const dayNum = Math.max(1, Math.round((new Date() - new Date('2026-06-01')) / 86400000) + 1);
+  const adherenceColor = adherence7d == null
+    ? color.dim
+    : adherence7d >= 80 ? color.warmA
+    : adherence7d >= 50 ? color.dim
+    : color.red;
 
   const handleSaveRecovery = async (value) => {
     const today = getTodayKey();
@@ -256,11 +184,11 @@ export default function Overview() {
       contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 110 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <Text style={s.eyebrow}>Day {dayNum} · {days} days to checkpoint</Text>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <Text style={s.eyebrow}>Campaign · Phase 1 · Day {dayNum}</Text>
       <View style={s.titleRow}>
         <Text style={s.title}>Overview</Text>
-        <View style={s.titleBadge}><Text style={s.titleBadgeTxt}>Phase 1</Text></View>
         {todayCI ? (
           <View style={s.loggedChip}><Text style={s.loggedChipTxt}>✓ Logged</Text></View>
         ) : (
@@ -268,63 +196,14 @@ export default function Overview() {
         )}
       </View>
 
-      {/* ── TODAY ───────────────────────────────────────────────────────────── */}
-      <SectionHeader
-        label="Today"
-        count={new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-      />
-      <Card flush style={s.overflowHidden}>
-        {/* Med status chips */}
-        <View style={s.chipRow}>
-          {activeMeds.map(med => (
-            <TodayMedChip key={med.id} med={med} status={medStatus(med.key)} />
-          ))}
-        </View>
-
-        {/* Daily stats row */}
-        {todayCI ? (
-          <View style={s.todayStats}>
-            <View style={s.statCell}>
-              <Text style={s.statVal}>
-                {todayCI.sleep ?? '—'}
-                {todayCI.sleep != null && <Text style={s.statUnit}>h</Text>}
-              </Text>
-              <Text style={s.statLbl}>SLEEP</Text>
-            </View>
-            <View style={s.statDiv} />
-            <View style={s.statCell}>
-              <Text style={s.statVal}>{todayCI.stress ? STRESS_LABEL[todayCI.stress] : '—'}</Text>
-              <Text style={s.statLbl}>STRESS</Text>
-            </View>
-            <View style={s.statDiv} />
-            <View style={s.statCell}>
-              <Text style={[s.statVal, (todayCI.cigarettes ?? 0) > 0 && { color: color.red }]}>
-                {todayCI.cigarettes ?? 0}
-              </Text>
-              <Text style={s.statLbl}>CIGS</Text>
-            </View>
-            <View style={s.statDiv} />
-            <View style={s.statCell}>
-              <Text style={[s.statVal, todayCI.sheddingNoticed && { color: color.warmA }]}>
-                {todayCI.sheddingNoticed ? 'Yes' : 'No'}
-              </Text>
-              <Text style={s.statLbl}>SHED</Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={s.notLoggedHint}>Log today to see daily stats</Text>
-        )}
-      </Card>
-
-      {/* ── RECOVERY ────────────────────────────────────────────────────────── */}
-      <SectionHeader label="Recovery progress" />
-      <Card flush style={s.overflowHidden}>
-        <View style={s.recovTop}>
+      {/* ── Recovery hero ────────────────────────────────────────────────────── */}
+      <Card flush style={s.heroCard}>
+        <View style={s.heroBody}>
           <View style={{ flex: 1 }}>
-            <Text style={s.recovEyebrow}>CROWN RECOVERY</Text>
-            <View style={s.recovNumRow}>
-              <Text style={s.recovNum}>{currentRecovery != null ? Math.round(currentRecovery) : '—'}</Text>
-              {currentRecovery != null && <Text style={s.recovUnit}>%</Text>}
+            <Text style={s.heroEyebrow}>CROWN RECOVERY · MONTHLY EST.</Text>
+            <View style={s.heroNumRow}>
+              <Text style={s.heroNum}>{currentRecovery != null ? Math.round(currentRecovery) : '—'}</Text>
+              {currentRecovery != null && <Text style={s.heroUnit}>%</Text>}
             </View>
             {arcData.length > 0 && (
               <View style={s.metaRow}>
@@ -353,7 +232,9 @@ export default function Overview() {
             <Text style={s.updateBtnTxt}>Update</Text>
           </TouchableOpacity>
         </View>
+
         <View style={s.arcSep} />
+
         {arcData.length >= 2 ? (
           <View style={s.arcWrap}>
             <RecoveryArc
@@ -370,50 +251,91 @@ export default function Overview() {
         )}
       </Card>
 
-      {/* ── THIS WEEK ───────────────────────────────────────────────────────── */}
-      <SectionHeader label="This week" count={streak > 0 ? `${streak}d streak` : undefined} />
-      <Card flush style={s.overflowHidden}>
-        <WeekDots days={entries7} />
-        <View style={s.barsWrap}>
-          {activeMeds.map((med, i, arr) => (
-            <AdherenceBar key={med.id} med={med} pct={medAdherence(med.key)} last={i === arr.length - 1} />
-          ))}
+      {/* ── Campaign timeline ────────────────────────────────────────────────── */}
+      <View style={s.timeline}>
+        <View style={s.timelineHead}>
+          <Text style={s.timelinePhase}>PHASE 1</Text>
+          <Text style={s.timelineCheckpoint}>CHECKPOINT: SEP '26</Text>
+        </View>
+        <View style={s.timelineBarWrap}>
+          <View style={s.timelineTrack}>
+            <View style={[s.timelineFill, { width: `${campaignPct}%` }]} />
+          </View>
+          <View style={[s.timelineDot, { left: `${campaignPct}%` }]} />
+        </View>
+        <View style={s.timelineFoot}>
+          <Text style={s.timelineLabel}>Day 1</Text>
+          <Text style={s.timelineLabelNow}>Day {dayNum} of {TOTAL_DAYS}</Text>
+          <Text style={s.timelineLabel}>Day {TOTAL_DAYS}</Text>
+        </View>
+      </View>
+
+      {/* ── Status gauges ─────────────────────────────────────────────────────── */}
+      <Card flush style={s.gaugeCard}>
+        <View style={s.gaugeRow}>
+          <View style={s.gauge}>
+            <Text style={[s.gaugeNum, { color: streak > 0 ? color.cool : color.faint }]}>{streak}</Text>
+            <Text style={s.gaugeLbl}>STREAK</Text>
+            <Text style={s.gaugeSub}>days</Text>
+          </View>
+          <View style={s.gaugeDivider} />
+          <View style={s.gauge}>
+            <View style={s.gaugeNumRow}>
+              <Text style={[s.gaugeNum, { color: adherenceColor }]}>{adherence7d ?? '—'}</Text>
+              {adherence7d != null && <Text style={[s.gaugeUnit, { color: adherenceColor }]}>%</Text>}
+            </View>
+            <Text style={s.gaugeLbl}>7D ADHERENCE</Text>
+            <Text style={s.gaugeSub}>oral + topical</Text>
+          </View>
+          <View style={s.gaugeDivider} />
+          <View style={s.gauge}>
+            <Text style={[s.gaugeNum, { color: days <= 14 ? color.warmA : color.dim }]}>{days}</Text>
+            <Text style={s.gaugeLbl}>DAYS LEFT</Text>
+            <Text style={s.gaugeSub}>to checkpoint</Text>
+          </View>
         </View>
       </Card>
 
-      {/* ── LIFESTYLE 7D AVG ────────────────────────────────────────────────── */}
-      {rec7Raw.length > 0 && (
-        <>
-          <SectionHeader label="Lifestyle · 7d avg" />
-          <Card flush style={s.overflowHidden}>
-            <View style={s.lifeGrid}>
-              <LifeStatCell
-                label="SLEEP"
-                value={avgSleep ? `${avgSleep}h` : null}
-                accent={avgSleep && parseFloat(avgSleep) < 6 ? color.red : undefined}
-              />
-              <View style={s.lifeDiv} />
-              <LifeStatCell
-                label="STRESS"
-                value={avgStressNum ? STRESS_LABEL[avgStressNum] : null}
-                accent={avgStressNum >= 4 ? color.warmA : undefined}
-              />
-              <View style={s.lifeDiv} />
-              <LifeStatCell
-                label="CIGS / DAY"
-                value={avgCigsNum != null ? avgCigsNum.toFixed(1) : null}
-                accent={avgCigsNum > 0 ? color.red : undefined}
-              />
-              <View style={s.lifeDiv} />
-              <LifeStatCell
-                label="SHEDDING"
-                value={`${sheddingDays}d`}
-                accent={sheddingDays >= 4 ? color.warmA : undefined}
-              />
+      {/* ── Today's deployment ───────────────────────────────────────────────── */}
+      <SectionHeader label="Today's deployment" />
+      <Card flush style={s.deployCard}>
+        <View style={s.chipRow}>
+          {activeMeds.map(med => (
+            <MedChip key={med.id} med={med} status={medStatus(med.key)} />
+          ))}
+        </View>
+        {todayCI ? (
+          <View style={s.deployStats}>
+            <View style={s.deployStat}>
+              <Text style={s.deployStatVal}>
+                {todayCI.sleep ?? '—'}{todayCI.sleep != null ? <Text style={s.deployStatUnit}>h</Text> : null}
+              </Text>
+              <Text style={s.deployStatLbl}>SLEEP</Text>
             </View>
-          </Card>
-        </>
-      )}
+            <View style={s.deployDivider} />
+            <View style={s.deployStat}>
+              <Text style={s.deployStatVal}>{todayCI.stress ? STRESS_LABEL[todayCI.stress] : '—'}</Text>
+              <Text style={s.deployStatLbl}>STRESS</Text>
+            </View>
+            <View style={s.deployDivider} />
+            <View style={s.deployStat}>
+              <Text style={[(todayCI.cigarettes ?? 0) > 0 ? s.deployStatBad : s.deployStatVal]}>
+                {todayCI.cigarettes ?? 0}
+              </Text>
+              <Text style={s.deployStatLbl}>CIGS</Text>
+            </View>
+            <View style={s.deployDivider} />
+            <View style={s.deployStat}>
+              <Text style={[todayCI.sheddingNoticed ? s.deployStatWarn : s.deployStatVal]}>
+                {todayCI.sheddingNoticed ? 'Yes' : 'No'}
+              </Text>
+              <Text style={s.deployStatLbl}>SHEDDING</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={s.deployHint}>Log today to see deployment status</Text>
+        )}
+      </Card>
 
       <RecoveryEntryModal
         visible={editingRecovery}
@@ -428,93 +350,96 @@ export default function Overview() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  content:       { paddingHorizontal: 16 },
-  overflowHidden:{ overflow: 'hidden' },
+  content: { paddingHorizontal: 16 },
 
-  eyebrow: { ...type.eyebrow, color: 'rgba(255,176,32,0.65)', marginBottom: 6 },
+  eyebrow:  { ...type.eyebrow, color: 'rgba(255,176,32,0.65)', marginBottom: 6 },
 
-  titleRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
-  title:            { ...type.screenTitle, color: color.warmA },
-  titleBadge:       { backgroundColor: 'rgba(255,176,32,0.12)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,176,32,0.3)' },
-  titleBadgeTxt:    { fontSize: 11, fontWeight: '700', color: color.warmA, letterSpacing: 0.3 },
-  loggedChip:       { marginLeft: 'auto', backgroundColor: 'rgba(48,209,88,0.12)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(48,209,88,0.25)' },
+  titleRow:         { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  title:            { ...type.screenTitle, color: color.warmA, flex: 1 },
+  loggedChip:       { backgroundColor: 'rgba(48,209,88,0.12)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(48,209,88,0.25)' },
   loggedChipTxt:    { fontSize: 11, fontWeight: '700', color: color.green, letterSpacing: 0.3 },
-  notLoggedChip:    { marginLeft: 'auto', backgroundColor: color.card2, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  notLoggedChip:    { backgroundColor: color.card2, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
   notLoggedChipTxt: { fontSize: 11, fontWeight: '600', color: color.faint, letterSpacing: 0.3 },
 
-  // Today card
-  chipRow:       { flexDirection: 'row', gap: 8, padding: 12 },
-  todayStats:    { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  statCell:      { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  statDiv:       { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 10 },
-  statVal:       { fontSize: 17, fontWeight: '700', letterSpacing: -0.4, color: color.txt, lineHeight: 22 },
-  statUnit:      { fontSize: 12, fontWeight: '600', color: color.dim },
-  statLbl:       { ...type.eyebrow, fontSize: 8, marginTop: 3 },
-  notLoggedHint: { ...type.eyebrow, color: color.faint, textAlign: 'center', paddingVertical: 14 },
-
-  // Recovery card
-  recovTop:     { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 16, paddingBottom: 14 },
-  recovEyebrow: { ...type.eyebrow, color: 'rgba(255,176,32,0.65)', marginBottom: 4 },
-  recovNumRow:  { flexDirection: 'row', alignItems: 'flex-end', gap: 3, marginBottom: 8 },
-  recovNum:     {
-    ...type.heroNumber,
+  // Hero
+  heroCard:    { overflow: 'hidden', marginBottom: space.md },
+  heroBody:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 18, paddingBottom: 14 },
+  heroEyebrow: { ...type.eyebrow, color: 'rgba(255,176,32,0.65)', marginBottom: 6 },
+  heroNumRow:  { flexDirection: 'row', alignItems: 'flex-end', gap: 4, marginBottom: 10 },
+  heroNum:     {
+    fontFamily: font.display,
+    fontSize: 72,
+    letterSpacing: -3,
+    lineHeight: 72,
     color: color.warmA,
-    lineHeight: 64,
-    textShadowColor: 'rgba(255,176,32,0.35)',
+    textShadowColor: 'rgba(255,176,32,0.30)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
+    textShadowRadius: 18,
   },
-  recovUnit:   { fontSize: 28, fontWeight: '800', color: color.warmA, marginBottom: 8, letterSpacing: -1 },
-  updateBtn:   { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: color.card2, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  heroUnit:    { fontFamily: font.displaySemi, fontSize: 32, letterSpacing: -1, color: color.warmA, marginBottom: 10 },
+  metaRow:     { flexDirection: 'row', gap: 20 },
+  metaItem:    { gap: 3 },
+  metaLabel:   { ...type.eyebrow, fontSize: 7 },
+  metaVal:     { fontFamily: font.mono, fontSize: 13, fontWeight: '700', letterSpacing: -0.2 },
+  updateBtn:   { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: color.card2, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
   updateBtnTxt:{ ...type.eyebrow, color: color.warmA, fontSize: 9 },
+  arcSep:      { height: StyleSheet.hairlineWidth, backgroundColor: color.line },
+  arcWrap:     { paddingTop: 10, paddingBottom: 10, paddingHorizontal: 4 },
+  arcEmpty:    { height: 80, alignItems: 'center', justifyContent: 'center', backgroundColor: color.card2, borderRadius: radius.row, margin: 16 },
+  arcEmptyTxt: { ...type.eyebrow, color: color.faint, textAlign: 'center', paddingHorizontal: 20 },
 
-  metaRow:   { flexDirection: 'row', gap: 16 },
-  metaItem:  { gap: 2 },
-  metaLabel: { ...type.eyebrow, fontSize: 7 },
-  metaVal:   { fontSize: 14, fontWeight: '700', letterSpacing: -0.3, fontFamily: 'System' },
+  // Campaign timeline
+  timeline:         { marginBottom: space.md },
+  timelineHead:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  timelinePhase:    { ...type.eyebrow, color: 'rgba(255,176,32,0.65)' },
+  timelineCheckpoint:{ ...type.eyebrow, color: color.faint },
+  timelineBarWrap:  { height: 20, justifyContent: 'center' },
+  timelineTrack:    { height: 5, backgroundColor: color.card2, borderRadius: 3, overflow: 'hidden' },
+  timelineFill:     { height: 5, backgroundColor: color.warmA, borderRadius: 3 },
+  timelineDot:      {
+    position: 'absolute',
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: color.warmA,
+    marginLeft: -7, top: 3,
+    borderWidth: 2, borderColor: color.bg,
+    shadowColor: color.warmA,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
+    shadowOpacity: 0.8,
+  },
+  timelineFoot:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  timelineLabel:    { ...type.eyebrow, fontSize: 8, color: color.faint },
+  timelineLabelNow: { ...type.eyebrow, fontSize: 8, color: color.warmA },
 
-  arcSep:     { height: StyleSheet.hairlineWidth, backgroundColor: color.line, marginHorizontal: 0 },
-  arcWrap:    { paddingTop: 12, paddingBottom: 10, paddingHorizontal: 4 },
-  arcEmpty:   { height: 72, alignItems: 'center', justifyContent: 'center', backgroundColor: color.card2, borderRadius: radius.row, margin: 14 },
-  arcEmptyTxt:{ ...type.eyebrow, color: color.faint, textAlign: 'center', paddingHorizontal: 16 },
+  // Gauges
+  gaugeCard:    { overflow: 'hidden', marginBottom: space.md },
+  gaugeRow:     { flexDirection: 'row' },
+  gauge:        { flex: 1, alignItems: 'center', paddingVertical: 20, gap: 3 },
+  gaugeDivider: { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 14 },
+  gaugeNumRow:  { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  gaugeNum:     { fontFamily: font.display, fontSize: 36, letterSpacing: -1.5, lineHeight: 40 },
+  gaugeUnit:    { fontFamily: font.displaySemi, fontSize: 18, letterSpacing: -0.5, marginBottom: 3 },
+  gaugeLbl:     { ...type.eyebrow },
+  gaugeSub:     { fontSize: 10, color: color.faint, fontFamily: font.mono },
 
-  // Weekly
-  barsWrap: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-
-  // Lifestyle
-  lifeGrid: { flexDirection: 'row' },
-  lifeDiv:  { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 14 },
+  // Today's deployment
+  deployCard:    { overflow: 'hidden' },
+  chipRow:       { flexDirection: 'row', gap: 8, padding: 12 },
+  deployStats:   { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
+  deployStat:    { flex: 1, alignItems: 'center', paddingVertical: 13 },
+  deployDivider: { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 10 },
+  deployStatVal: { fontSize: 16, fontWeight: '700', color: color.txt, letterSpacing: -0.3, lineHeight: 20 },
+  deployStatBad: { fontSize: 16, fontWeight: '700', color: color.red,  letterSpacing: -0.3, lineHeight: 20 },
+  deployStatWarn:{ fontSize: 16, fontWeight: '700', color: color.warmA,letterSpacing: -0.3, lineHeight: 20 },
+  deployStatUnit:{ fontSize: 12, fontWeight: '600', color: color.dim },
+  deployStatLbl: { ...type.eyebrow, fontSize: 8, marginTop: 3 },
+  deployHint:    { ...type.eyebrow, color: color.faint, textAlign: 'center', paddingVertical: 14 },
 });
 
 const chip = StyleSheet.create({
-  wrap:  { flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 4, borderRadius: radius.row, borderWidth: StyleSheet.hairlineWidth },
-  name:  { fontSize: 10, fontWeight: '600', letterSpacing: 0.1 },
-  badge: { fontSize: 13, fontWeight: '700' },
-});
-
-const wd = StyleSheet.create({
-  row:      { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },
-  item:     { alignItems: 'center', gap: 6 },
-  dow:      { ...type.eyebrow, fontSize: 8, color: color.faint },
-  dot:      { width: 28, height: 28, borderRadius: 14, backgroundColor: color.card2, borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
-  dotLogged:{ backgroundColor: 'rgba(48,209,88,0.15)', borderColor: 'rgba(48,209,88,0.35)' },
-  dotToday: { borderColor: 'rgba(255,176,32,0.40)', borderWidth: 1.5 },
-});
-
-const ab = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'center', paddingRight: 16, paddingVertical: 11, gap: 10 },
-  border:{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
-  strip: { width: 3, height: 20, borderRadius: 2 },
-  name:  { fontSize: 13, fontWeight: '500', width: 66 },
-  track: { flex: 1, height: 4, backgroundColor: color.card2, borderRadius: 2, overflow: 'hidden' },
-  fill:  { height: 4, borderRadius: 2 },
-  pct:   { fontSize: 12, fontWeight: '700', width: 38, textAlign: 'right', letterSpacing: -0.2 },
-});
-
-const ls = StyleSheet.create({
-  cell:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
-  val:   { ...type.statValue, fontSize: 18, color: color.txt },
-  label: { ...type.eyebrow, marginTop: 5 },
+  wrap:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, paddingHorizontal: 4, borderRadius: radius.row, borderWidth: StyleSheet.hairlineWidth },
+  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.1 },
+  status:{ fontSize: 12, fontWeight: '700' },
 });
 
 const rem = StyleSheet.create({
