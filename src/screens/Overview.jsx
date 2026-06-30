@@ -97,19 +97,18 @@ function CompletionRing({ done, total }) {
 function MedChip({ med, status }) {
   const done    = status === 'done';
   const skipped = status === 'skipped';
-  const a       = med.accent;
-  const c       = done ? a : skipped ? color.red : ra(a, 0.55);
+  const c       = done ? color.warmA : skipped ? color.red : ra(color.warmA, 0.40);
   return (
     <View style={[
       chip.wrap,
       {
-        backgroundColor: done ? ra(a, 0.10) : skipped ? ra(color.red, 0.07) : ra(a, 0.06),
-        borderColor:     done ? ra(a, 0.28) : skipped ? ra(color.red, 0.18) : ra(a, 0.16),
+        backgroundColor: done ? ra(color.warmA, 0.10) : skipped ? ra(color.red, 0.07) : 'transparent',
+        borderColor:     done ? '#3A2E18' : skipped ? ra(color.red, 0.18) : color.line,
       },
     ]}>
       <med.Icon size={13} color={c} />
       <Text style={[chip.label, { color: c }]}>{med.label}</Text>
-      {done    && <Text style={[chip.status, { color: a }]}>✓</Text>}
+      {done    && <Text style={[chip.status, { color: color.warmA }]}>✓</Text>}
       {skipped && <Text style={[chip.status, { color: color.red }]}>✕</Text>}
     </View>
   );
@@ -266,8 +265,7 @@ export default function Overview({ navigation }) {
 
   const adherenceColor = adherence7d == null ? color.dim
     : adherence7d >= 80 ? color.warmA
-    : adherence7d >= 50 ? color.dim
-    : color.red;
+    : color.dim;
 
   // Hero title text + color
   let heroTitle, heroTitleColor, heroSub;
@@ -280,9 +278,13 @@ export default function Overview({ navigation }) {
     heroTitleColor = color.warmA;
     heroSub        = 'Protocol complete';
   } else {
-    heroTitle      = `${doneMeds} of ${activeMeds.length} done`;
+    heroTitle      = nextDueMed
+      ? `${nextDueMed.fullName.split(' ')[0]} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : 'soon'}`
+      : 'Almost done';
     heroTitleColor = color.warmA;
-    heroSub        = nextDueMed ? `${nextDueMed.label} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : 'this morning'} · ${nextDueMed.time ?? nextDueMed.timing}` : '';
+    heroSub        = nextDueMed
+      ? `${nextDueMed.time ?? nextDueMed.timing} · ${doneMeds} of ${activeMeds.length} done`
+      : `${doneMeds} of ${activeMeds.length} done`;
   }
 
   // Bloodwork
@@ -334,22 +336,19 @@ export default function Overview({ navigation }) {
       {/* 2 ── North-star strip ───────────────────────────────────────────────── */}
       <Card flush style={s.nsCard}>
         <View style={s.nsRow}>
-          <TouchableOpacity style={s.nsMain} onPress={() => navigation.navigate('Progress')} activeOpacity={0.75}>
-            <Text style={s.nsNum}>{currentRecovery != null ? `${Math.round(currentRecovery)}%` : '—'}</Text>
+          <TouchableOpacity style={s.nsMain} onPress={() => setEditingRecovery(true)} activeOpacity={0.75}>
+            <Text style={s.nsNum}>{`${Math.round(currentRecovery ?? 0)}%`}</Text>
             <View style={s.nsBarOuter}>
               <View style={s.nsTrack}>
-                <View style={[s.nsFill, { width: currentRecovery ? `${Math.min(currentRecovery, 100)}%` : '0%' }]} />
+                <View style={[s.nsFill, { width: `${Math.min(currentRecovery ?? 0, 100)}%` }]} />
                 {peakRecovery != null && (
                   <View style={[s.nsPeakDot, { left: `${Math.min(peakRecovery, 100)}%` }]} />
                 )}
               </View>
               <Text style={s.nsMeta}>
-                {peakRecovery != null ? `peak ${Math.round(peakRecovery)}` : 'no data'}{' · goal 100 · full arc ›'}
+                {peakRecovery != null ? `peak ${Math.round(peakRecovery)}` : 'tap to log'}{' · goal 100 · full arc ›'}
               </Text>
             </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.nsUpdateBtn} onPress={() => setEditingRecovery(true)} activeOpacity={0.7}>
-            <Text style={s.nsUpdateTxt}>Update</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -378,7 +377,7 @@ export default function Overview({ navigation }) {
         {/* Secondary stats */}
         <View style={s.statsRow}>
           <View style={s.stat}>
-            <Text style={[s.statNum, { color: streak > 0 ? color.cool : color.faint }]}>{streak}</Text>
+            <Text style={[s.statNum, { color: streak > 0 ? color.copper : color.faint }]}>{streak}</Text>
             <Text style={s.statLbl}>STREAK</Text>
           </View>
           <View style={s.statDiv} />
@@ -391,43 +390,50 @@ export default function Overview({ navigation }) {
           </View>
           <View style={s.statDiv} />
           <View style={s.stat}>
-            <Text style={[s.statNum, { color: daysLeft <= 14 ? color.warmA : color.dim }]}>{daysLeft}</Text>
-            <Text style={s.statLbl}>DAYS LEFT</Text>
+            {todayCI ? (
+              <>
+                <Text style={[s.statNum, { color: (todayCI.cigarettes ?? 0) > 0 ? color.red : color.green }]}>{todayCI.cigarettes ?? 0}</Text>
+                <Text style={s.statLbl}>CIGS TODAY</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[s.statNum, { color: daysLeft <= 14 ? color.warmA : color.dim }]}>{daysLeft}</Text>
+                <Text style={s.statLbl}>DAYS LEFT</Text>
+              </>
+            )}
           </View>
         </View>
       </Card>
 
       {/* 4 ── Today's read (AI) ─────────────────────────────────────────────── */}
-      {(dailyRead || dailyReadLoading) ? (
-        <Card style={s.readCard}>
-          {/* Header: icon + eyebrow + cached time */}
-          <View style={s.readHeader}>
-            <View style={s.readIconBox}>
-              <Lightning size={13} color={color.warmA} />
-            </View>
-            <Text style={s.readEyebrow}>TODAY'S READ</Text>
-            {dailyRead?.cachedAt ? (
-              <Text style={s.readCached}>{formatCachedTime(dailyRead.cachedAt)}</Text>
-            ) : null}
+      <Card style={s.readCard}>
+        <View style={s.readHeader}>
+          <View style={s.readIconBox}>
+            <Lightning size={13} color={color.warmA} />
           </View>
-          {/* Body: two-tone or skeleton */}
-          {dailyRead ? (
-            <Text style={s.readBody}>
-              {dailyRead.observe ? (
-                <>
-                  <Text style={s.readObserve}>{dailyRead.observe}{dailyRead.action ? ' ' : ''}</Text>
-                  {dailyRead.action ? <Text style={s.readAction}>{dailyRead.action}</Text> : null}
-                </>
-              ) : null}
-            </Text>
-          ) : (
-            <View style={s.skeletonWrap}>
-              <View style={s.skLine} />
-              <View style={[s.skLine, { width: '75%' }]} />
-            </View>
-          )}
-        </Card>
-      ) : null}
+          <Text style={s.readEyebrow}>TODAY'S READ</Text>
+          {dailyRead?.cachedAt ? (
+            <Text style={s.readCached}>{formatCachedTime(dailyRead.cachedAt)}</Text>
+          ) : null}
+        </View>
+        {dailyReadLoading ? (
+          <View style={s.skeletonWrap}>
+            <View style={s.skLine} />
+            <View style={[s.skLine, { width: '75%' }]} />
+          </View>
+        ) : dailyRead ? (
+          <Text style={s.readBody}>
+            {dailyRead.observe ? (
+              <>
+                <Text style={s.readObserve}>{dailyRead.observe}{dailyRead.action ? ' ' : ''}</Text>
+                {dailyRead.action ? <Text style={s.readAction}>{dailyRead.action}</Text> : null}
+              </>
+            ) : null}
+          </Text>
+        ) : (
+          <Text style={s.readObserve}>Tap to load today's read</Text>
+        )}
+      </Card>
 
       {/* 5 ── Signals ────────────────────────────────────────────────────────── */}
       {signals.length > 0 ? (
@@ -487,18 +493,14 @@ const s = StyleSheet.create({
   nsBarOuter:  { flex: 1, gap: 7 },
   nsTrack:     { height: 4, backgroundColor: color.card2, borderRadius: 2, overflow: 'visible' },
   nsFill:      { height: 4, backgroundColor: color.warmA, borderRadius: 2 },
-  nsPeakDot:   { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: color.warmA,
+  nsPeakDot:   { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: color.copper,
                  top: -1.5, marginLeft: -3.5, borderWidth: 1.5, borderColor: color.card },
   nsMeta:      { ...type.eyebrow, fontSize: 8, color: color.faint, letterSpacing: 0.8 },
-  nsUpdateBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: color.card2,
-                 borderWidth: StyleSheet.hairlineWidth, borderColor: color.line, marginLeft: 10 },
-  nsUpdateTxt: { ...type.eyebrow, color: color.warmA, fontSize: 9 },
-
   // TODAY hero
   heroCard:  { overflow: 'hidden', marginBottom: space.md },
   heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 20, paddingBottom: 16 },
   heroInfo:  { flex: 1 },
-  heroTitle: { fontFamily: font.display, fontSize: 36, letterSpacing: -1.5, lineHeight: 40, marginBottom: 6 },
+  heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 6 },
   heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim },
   logBtn:    { marginTop: 16, paddingVertical: 13, borderRadius: radius.row,
                backgroundColor: color.warmA, alignItems: 'center' },
