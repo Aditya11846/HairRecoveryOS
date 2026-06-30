@@ -11,6 +11,7 @@ import {
   daysToCheckpoint, getLast30Days, get, set,
 } from '../utils/storage';
 import { getDailyRead } from '../services/ai';
+import LinearGradient from 'react-native-linear-gradient';
 import { Pill, Droplet, Sun, Shield, Check, Lightning, Cigarette } from '../components/Icon';
 import Card from '../components/Card';
 import { color, type, radius, space, font } from '../theme/tokens';
@@ -279,7 +280,7 @@ export default function Overview({ navigation }) {
     heroSub        = 'Protocol complete';
   } else {
     heroTitle      = nextDueMed
-      ? `${nextDueMed.fullName.split(' ')[0]} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : 'soon'}`
+      ? `${nextDueMed.label} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : nextDueMed.timing === 'Anytime' ? 'today' : 'soon'}`
       : 'Almost done';
     heroTitleColor = color.warmA;
     heroSub        = nextDueMed
@@ -361,8 +362,13 @@ export default function Overview({ navigation }) {
             <Text style={[s.heroTitle, { color: heroTitleColor }]}>{heroTitle}</Text>
             <Text style={s.heroSub}>{heroSub}</Text>
             {!todayCI && (
-              <TouchableOpacity style={s.logBtn} onPress={() => navigation.navigate('Check-in')} activeOpacity={0.8}>
-                <Text style={s.logBtnTxt}>Log today</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Check-in')} activeOpacity={0.85} style={{ marginTop: 16 }}>
+                <LinearGradient
+                  colors={['#FFB020', '#FF6B4A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={{ paddingVertical: 13, borderRadius: radius.row, alignItems: 'center' }}
+                >
+                  <Text style={s.logBtnTxt}>Log today</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
@@ -409,7 +415,7 @@ export default function Overview({ navigation }) {
       <Card style={s.readCard}>
         <View style={s.readHeader}>
           <View style={s.readIconBox}>
-            <Lightning size={13} color={color.warmA} />
+            <Text style={{ fontSize: 13, color: color.bg, fontWeight: '700' }}>✦</Text>
           </View>
           <Text style={s.readEyebrow}>TODAY'S READ</Text>
           {dailyRead?.cachedAt ? (
@@ -498,28 +504,26 @@ const s = StyleSheet.create({
   nsMeta:      { ...type.eyebrow, fontSize: 8, color: color.faint, letterSpacing: 0.8 },
   // TODAY hero
   heroCard:  { overflow: 'hidden', marginBottom: space.md },
-  heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 20, paddingBottom: 16 },
+  heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 22, paddingBottom: 18 },
   heroInfo:  { flex: 1 },
-  heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 6 },
+  heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 8 },
   heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim },
-  logBtn:    { marginTop: 16, paddingVertical: 13, borderRadius: radius.row,
-               backgroundColor: color.warmA, alignItems: 'center' },
-  logBtnTxt: { fontSize: 14, fontWeight: '700', color: color.bg, letterSpacing: 0.3 },
+  logBtnTxt: { fontSize: 14, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3 },
 
-  chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 14, paddingBottom: 14,
-             borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line, paddingTop: 12 },
+  chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 14, paddingBottom: 16,
+             borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line, paddingTop: 16 },
 
   statsRow: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  stat:     { flex: 1, alignItems: 'center', paddingVertical: 12, gap: 3 },
+  stat:     { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
   statDiv:  { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 10 },
   statNum:  { fontFamily: font.display, fontSize: 22, letterSpacing: -1, lineHeight: 26 },
   statUnit: { fontFamily: font.displaySemi, fontSize: 12, letterSpacing: -0.3, marginBottom: 2 },
   statLbl:  { ...type.eyebrow, fontSize: 8 },
 
   // Today's read
-  readCard:   { marginBottom: space.md },
+  readCard:   { marginBottom: space.md, backgroundColor: '#16100A', borderColor: '#2A2114' },
   readHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  readIconBox:{ width: 26, height: 26, borderRadius: 8, backgroundColor: ra(color.warmA, 0.14),
+  readIconBox:{ width: 26, height: 26, borderRadius: 9, backgroundColor: color.warmA,
                 alignItems: 'center', justifyContent: 'center' },
   readEyebrow:{ ...type.eyebrow, color: color.faint, flex: 1 },
   readCached: { ...type.eyebrow, fontSize: 8, color: color.faint },
