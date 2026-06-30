@@ -34,7 +34,7 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string/>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -57,6 +57,12 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>Ionicons.ttf</string>
+		<string>JetBrainsMono-Bold.ttf</string>
+		<string>JetBrainsMono-Regular.ttf</string>
+		<string>BricolageGrotesque-ExtraBold.ttf</string>
+		<string>Inter-Regular.ttf</string>
+		<string>BricolageGrotesque-Bold.ttf</string>
+		<string>Inter-SemiBold.ttf</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
