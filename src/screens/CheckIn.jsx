@@ -792,7 +792,7 @@ const s = StyleSheet.create({
   saveBtn: { height: 54, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   saveBtnDisabled: { backgroundColor: color.card },
   saveBtnDone: {},
-  saveTxt: { fontSize: 16, fontWeight: '700', color: '#1A1000', zIndex: 1 },
+  saveTxt: { fontSize: 15, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3, zIndex: 1 },
 
   burstOverlay: { position: 'absolute', bottom: 120, left: 0, right: 0, height: 200, alignItems: 'center', justifyContent: 'center' },
   ring: { position: 'absolute', width: 200, height: 200, borderRadius: 100, borderWidth: 2, borderColor: color.warmA },

@@ -37,7 +37,7 @@ export const radius = { card: 20, stat: 16, row: 14, pill: 12, full: 999 };
 export const space  = { xs: 4, sm: 8, md: 11, lg: 15, xl: 18 };
 
 export const type = {
-  screenTitle: { fontFamily: font.display,     fontSize: 30, letterSpacing: -0.9, color: '#F5F5F7' },
+  screenTitle: { fontFamily: font.display,     fontSize: 38, letterSpacing: -1.2, color: '#F5F5F7' },
   heroNumber:  { fontFamily: font.display,     fontSize: 68, letterSpacing: -3,   color: '#F5F5F7' },
   statValue:   { fontFamily: font.displaySemi, fontSize: 24, letterSpacing: -0.5, color: '#F5F5F7' },
   heading:     { fontFamily: font.displaySemi, fontSize: 20, letterSpacing: -0.4, color: '#F5F5F7' },

@@ -390,7 +390,7 @@ const s = StyleSheet.create({
   noteTxt: { fontSize: 12, color: color.dim, lineHeight: 18 },
   saveBtn: { backgroundColor: color.warmA, borderRadius: radius.card, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   saveBtnDone: { backgroundColor: color.green },
-  saveBtnTxt:  { fontSize: 16, fontWeight: '700', color: '#1A1000' },
+  saveBtnTxt:  { fontSize: 15, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3 },
   lastSaved:   { fontSize: 12, color: color.faint, textAlign: 'center', marginTop: 10 },
 });
 

@@ -503,7 +503,7 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
 
   eyebrow: { ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 6 },
-  title:   { ...type.screenTitle, fontSize: 38, letterSpacing: -1.2, marginBottom: 22 },
+  title:   { ...type.screenTitle, marginBottom: 22 },
 
   // North-star strip
   nsCard:      { overflow: 'hidden', marginBottom: space.md, borderWidth: 1, borderColor: '#2A2114' },
