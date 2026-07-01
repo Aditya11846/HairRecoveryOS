@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
-  Modal, Pressable,
+  Modal, Pressable, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getLast30Days, getLastNDays, getStreakCount, get, set, getTodayKey } from '../utils/storage';
+import { getLast30Days, getLastNDays, getStreakCount, get, set, getTodayKey, getScalpPhotos, getScalpPhotoSignedUrl } from '../utils/storage';
 import { TIMELINE, PHASE1_OBJECTIVES } from '../constants/timeline';
 import AreaChart from '../components/AreaChart';
 import Sparkline from '../components/Sparkline';
@@ -177,6 +177,8 @@ export default function Progress({ navigation }) {
   const [bloodworkData, setBloodworkData] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [showModal, setShowModal]   = useState(false);
+  const [latestScalpPhoto, setLatestScalpPhoto] = useState(null);
+  const [latestScalpPhotoUrl, setLatestScalpPhotoUrl] = useState(null);
   const todayStr = getTodayKey();
 
   useFocusEffect(
@@ -187,7 +189,8 @@ export default function Progress({ navigation }) {
         getStreakCount(),
         get('phase1', {}),
         get('bloodwork', null),
-      ]).then(([d, hd, str, ph, bw]) => {
+        getScalpPhotos(),
+      ]).then(([d, hd, str, ph, bw, scalpPhotos]) => {
         setDays(d);
         setHeatmapDays(hd);
         setStreak(str);
@@ -195,6 +198,10 @@ export default function Progress({ navigation }) {
         if (str >= 30 && !ph.streak30) set('phase1', derivedPh);
         setPhase1(derivedPh);
         setBloodworkData(bw);
+
+        const latest = scalpPhotos.length ? scalpPhotos[scalpPhotos.length - 1] : null;
+        setLatestScalpPhoto(latest);
+        if (latest) getScalpPhotoSignedUrl(latest.storage_path).then(setLatestScalpPhotoUrl);
       }).catch(() => {});
     }, [])
   );
@@ -245,6 +252,36 @@ export default function Progress({ navigation }) {
 
       {/* Phase timeline */}
       <PhaseTimeline />
+
+      {/* Recovery Arc preview */}
+      <SectionHeader label="Recovery Arc" />
+      <TouchableOpacity onPress={() => navigation.navigate('RecoveryArc')} activeOpacity={0.8}>
+        <Card style={s.arcCard}>
+          <View style={s.arcRow}>
+            {latestScalpPhotoUrl ? (
+              <Image source={{ uri: latestScalpPhotoUrl }} style={s.arcThumb} />
+            ) : (
+              <View style={[s.arcThumb, s.arcThumbEmpty]} />
+            )}
+            <View style={{ flex: 1 }}>
+              {latestScalpPhoto ? (
+                <>
+                  <Text style={s.arcTitle}>
+                    {latestScalpPhoto.verdict === 'improved' ? 'Improved' : latestScalpPhoto.verdict === 'worse' ? 'Worse' : latestScalpPhoto.verdict === 'stable' ? 'Stable' : 'Photo logged'}
+                  </Text>
+                  <Text style={s.arcSub}>Latest photo · {latestScalpPhoto.date}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={s.arcTitle}>No photos yet</Text>
+                  <Text style={s.arcSub}>Take your first monthly crown photo</Text>
+                </>
+              )}
+            </View>
+            <Text style={s.arcChevron}>›</Text>
+          </View>
+        </Card>
+      </TouchableOpacity>
 
       {/* Cigarettes area chart */}
       <SectionHeader
@@ -361,6 +398,15 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   eyebrow: { ...type.eyebrow, marginBottom: 6 },
   title:   { ...type.screenTitle, marginBottom: 20 },
+
+  // Recovery Arc preview
+  arcCard:      { marginBottom: space.md },
+  arcRow:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  arcThumb:     { width: 44, height: 44, borderRadius: radius.stat, backgroundColor: color.card2 },
+  arcThumbEmpty:{ borderWidth: StyleSheet.hairlineWidth, borderColor: color.line },
+  arcTitle:     { ...type.bodyStrong, marginBottom: 2 },
+  arcSub:       { ...type.eyebrow, color: color.faint },
+  arcChevron:   { fontSize: 20, color: color.faint },
 
   // Cigarette chart
   chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },

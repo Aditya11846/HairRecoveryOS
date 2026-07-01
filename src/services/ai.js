@@ -535,3 +535,42 @@ export async function getDailyRead(metrics) {
   set(DAILY_READ_LOCAL_KEY, { date: today, observe, action, cachedAt }).catch(() => {});
   return { observe, action, cachedAt };
 }
+
+// ─── Feature: Crown photo comparison ─────────────────────────────────────────
+
+const CROWN_SYSTEM = `You are a dermatology-informed hair recovery analyst reviewing crown/vertex photos for Aditya Singh, 22, Pune.
+AGA crown-dominant Norwood ~3 vertex, on active treatment (oral minoxidil 2.5mg, topical Novegrow 10%, dutasteride 0.5mg Mon+Thu, red light comb).
+You will be shown 1-3 photos of the same crown angle taken on different dates, oldest first. Compare density, coverage, and visible scalp show between the most recent photo and the earlier one(s).
+Return ONLY a JSON object (no markdown, no code fences):
+{"verdict":"improved"|"stable"|"worse","confidence":0.0-1.0,"notes":"one or two factual sentences describing the specific visual difference observed"}
+Be conservative — if the angle/lighting differs enough to make comparison unreliable, still give your best verdict but keep confidence low and say so in notes.`;
+
+// baselineB64/previousB64/currentB64 are base64-encoded JPEG strings (no data: prefix).
+// Returns { verdict, confidence, notes } | { verdict: null, error } | { noApiKey: true }
+export async function getCrownAssessment({ baselineB64, previousB64, currentB64 }) {
+  const apiKey = await get('api_key', '');
+  if (!apiKey) return { noApiKey: true };
+  if (!currentB64) return { verdict: null, error: 'no_current_photo' };
+
+  const imageBlock = (data) => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } });
+  const content = [];
+  if (baselineB64 && baselineB64 !== previousB64) {
+    content.push({ type: 'text', text: 'Baseline photo (first ever recorded):' }, imageBlock(baselineB64));
+  }
+  if (previousB64) {
+    content.push({ type: 'text', text: 'Previous month photo:' }, imageBlock(previousB64));
+  }
+  content.push(
+    { type: 'text', text: 'Current month photo:' }, imageBlock(currentB64),
+    { type: 'text', text: 'Compare the current photo against the earlier one(s) and return the JSON verdict.' },
+  );
+
+  const { result: rawText, error } = await callClaudeText(apiKey, CROWN_SYSTEM, content, 300);
+  if (!rawText) return { verdict: null, error: error || 'empty_response' };
+
+  try {
+    const obj = JSON.parse(rawText.replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim());
+    if (obj?.verdict) return { verdict: obj.verdict, confidence: obj.confidence ?? null, notes: obj.notes || '' };
+  } catch {}
+  return { verdict: null, error: 'parse_failed' };
+}

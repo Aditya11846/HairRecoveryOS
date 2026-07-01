@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getTodayKey, getStreakCount, getRecentCheckins, loadCheckin,
-  daysToCheckpoint, getLast30Days, get, set,
+  daysToCheckpoint, getLast30Days, get, set, getScalpPhotos,
 } from '../utils/storage';
 import { getDailyRead } from '../services/ai';
 import { Pill, Droplet, Sun, Shield, Check, Lightning, Cigarette, Star } from '../components/Icon';
@@ -200,6 +200,7 @@ export default function Overview({ navigation }) {
   const [bloodworkAt, setBloodworkAt]           = useState(null);
   const [dailyRead, setDailyRead]               = useState(null);   // { observe, action, cachedAt } | null
   const [dailyReadLoading, setDailyReadLoading] = useState(false);
+  const [latestScalpVerdict, setLatestScalpVerdict] = useState(null); // 'improved'|'stable'|'worse'|null, current month only
 
   useFocusEffect(
     useCallback(() => {
@@ -211,7 +212,10 @@ export default function Overview({ navigation }) {
         get('recovery_log', []),
         getLast30Days(),
         get('bloodwork', null),
-      ]).then(([ci, str, rec7, rlog, last30, bw]) => {
+        getScalpPhotos(),
+      ]).then(([ci, str, rec7, rlog, last30, bw, scalpPhotos]) => {
+        const latestPhoto = scalpPhotos.length ? scalpPhotos[scalpPhotos.length - 1] : null;
+        setLatestScalpVerdict(latestPhoto?.date?.slice(0, 7) === todayKey.slice(0, 7) ? latestPhoto.verdict : null);
         setTodayCI(ci);
         setStreak(str);
         const full = rec7.filter(c => c.oralMinoxidil && c.topicalMinoxidil).length;
@@ -350,7 +354,14 @@ export default function Overview({ navigation }) {
                 <Text style={s.nsMeta}>
                   {peakRecovery != null ? `peak ${Math.round(peakRecovery)} · goal 100` : 'goal 100'}
                 </Text>
-                <Text style={s.nsMetaAction}>Full arc ›</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('RecoveryArc')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={s.nsMetaAction}>
+                    {latestScalpVerdict === 'improved' ? '✓ ' : latestScalpVerdict === 'worse' ? '⚑ ' : ''}Full arc ›
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
 import { CHECKPOINT_DATE } from '../constants/config';
 import { withTimeout } from './fetchTimeout';
@@ -323,4 +324,73 @@ export const set = async (key, value) => {
 export const daysToCheckpoint = () => {
   const today = new Date();
   return Math.max(0, Math.ceil((CHECKPOINT_DATE - today) / (1000 * 60 * 60 * 24)));
+};
+
+// ─── Scalp photos (crown recovery) ─────────────────────────────────────────────
+
+const SCALP_PHOTOS_BUCKET   = 'scalp-photos';
+const SCALP_PHOTOS_CACHE_KEY = `${PREFIX}scalp_photos_meta`;
+
+// Rows: { id, date, storage_path, verdict, confidence, notes, created_at }, oldest first
+export const getScalpPhotos = async () => {
+  try {
+    const { data, error } = await withTimeout(
+      supabase.from('scalp_photos').select('*').order('date', { ascending: true }),
+      8000, { data: null, error: 'timeout' },
+    );
+    if (error || !data) {
+      const raw = await AsyncStorage.getItem(SCALP_PHOTOS_CACHE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }
+    await AsyncStorage.setItem(SCALP_PHOTOS_CACHE_KEY, JSON.stringify(data));
+    return data;
+  } catch {
+    return [];
+  }
+};
+
+// base64Jpeg: raw base64 string, no "data:image/jpeg;base64," prefix
+export const uploadScalpPhoto = async (base64Jpeg, dateStr) => {
+  const path = `${dateStr}.jpg`;
+  const { error } = await supabase.storage.from(SCALP_PHOTOS_BUCKET).upload(path, decode(base64Jpeg), {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw error;
+  return path;
+};
+
+// Fetches a remote image and returns raw base64 (no data: prefix), or null on failure.
+export const fetchImageAsBase64 = async (url) => {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+export const getScalpPhotoSignedUrl = async (storagePath, expiresIn = 3600) => {
+  try {
+    const { data, error } = await supabase.storage.from(SCALP_PHOTOS_BUCKET).createSignedUrl(storagePath, expiresIn);
+    return error ? null : (data?.signedUrl || null);
+  } catch {
+    return null;
+  }
+};
+
+export const saveScalpPhotoRecord = async ({ date, storage_path, verdict, confidence, notes }) => {
+  const { data, error } = await withTimeout(
+    supabase.from('scalp_photos').insert({ date, storage_path, verdict, confidence, notes }).select().single(),
+    8000, { data: null, error: 'timeout' },
+  );
+  if (error) throw error;
+  await AsyncStorage.removeItem(SCALP_PHOTOS_CACHE_KEY); // force refresh on next getScalpPhotos()
+  return data;
 };

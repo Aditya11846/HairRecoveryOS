@@ -28,6 +28,7 @@ import Progress from './src/screens/Progress';
 import Research from './src/screens/Research';
 import AskClaude from './src/screens/AskClaude';
 import Bloodwork from './src/screens/Bloodwork';
+import RecoveryArc from './src/screens/RecoveryArc';
 import TabBar from './src/components/TabBar';
 import { syncPendingCheckins } from './src/utils/storage';
 import { initNotifications } from './src/services/notifications';
@@ -44,6 +45,15 @@ const WrapCheckIn = (props: any) => <ErrorBoundary name="CheckIn"><CheckIn {...p
 const WrapOverview = (props: any) => <ErrorBoundary name="Overview"><Overview {...props} /></ErrorBoundary>;
 const WrapResearch = (props: any) => <ErrorBoundary name="Research"><Research {...props} /></ErrorBoundary>;
 const WrapClaude = (props: any) => <ErrorBoundary name="AskClaude"><AskClaude {...props} /></ErrorBoundary>;
+const WrapRecoveryArc = (props: any) => <ErrorBoundary name="RecoveryArc"><RecoveryArc {...props} /></ErrorBoundary>;
+
+const RECOVERY_ARC_SCREEN = (
+  <Stack.Screen
+    name="RecoveryArc"
+    component={WrapRecoveryArc}
+    options={{ animation: 'slide_from_right', gestureEnabled: true }}
+  />
+);
 
 function ProgressStack() {
   return (
@@ -57,6 +67,18 @@ function ProgressStack() {
           gestureEnabled: true,
         }}
       />
+      {RECOVERY_ARC_SCREEN}
+    </Stack.Navigator>
+  );
+}
+
+// ── Overview stack (Overview → Recovery Arc) ─────────────────────────────────
+
+function OverviewStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="OverviewMain" component={WrapOverview} />
+      {RECOVERY_ARC_SCREEN}
     </Stack.Navigator>
   );
 }
@@ -84,7 +106,7 @@ export default function App() {
           screenOptions={{ headerShown: false }}
         >
           <Tab.Screen name="Check-in" component={WrapCheckIn} />
-          <Tab.Screen name="Overview" component={WrapOverview} />
+          <Tab.Screen name="Overview" component={OverviewStack} />
           <Tab.Screen name="Progress" component={ProgressStack} />
           <Tab.Screen name="Research" component={WrapResearch} />
           <Tab.Screen name="Claude"   component={WrapClaude} />
