@@ -346,9 +346,12 @@ export default function Overview({ navigation }) {
                   <View style={[s.nsPeakDot, { left: `${Math.min(peakRecovery, 100)}%` }]} />
                 )}
               </View>
-              <Text style={s.nsMeta}>
-                {peakRecovery != null ? `peak ${Math.round(peakRecovery)}` : 'tap to log'}{' · goal 100 · full arc ›'}
-              </Text>
+              <View style={s.nsMetaRow}>
+                <Text style={s.nsMeta}>
+                  {peakRecovery != null ? `peak ${Math.round(peakRecovery)} · goal 100` : 'goal 100'}
+                </Text>
+                <Text style={s.nsMetaAction}>Full arc ›</Text>
+              </View>
             </View>
           </TouchableOpacity>
         </View>
@@ -438,7 +441,7 @@ export default function Overview({ navigation }) {
             ) : null}
           </Text>
         ) : (
-          <Text style={s.readObserve}>Tap to load today's read</Text>
+          <Text style={s.readObserve}>Nothing to read yet — check back later.</Text>
         )}
       </Card>
 
@@ -493,16 +496,18 @@ const s = StyleSheet.create({
 
   // North-star strip
   nsCard:      { overflow: 'hidden', marginBottom: space.md, borderWidth: 1, borderColor: '#2A2114' },
-  nsRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: space.lg },
+  nsRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, paddingHorizontal: space.lg },
   nsMain:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   nsIconBox:   { width: 28, height: 28, borderRadius: 9, backgroundColor: color.warmA,
                  alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   nsNum:       { fontFamily: font.display, fontSize: 30, letterSpacing: -1.5, color: color.txt },
-  nsBarOuter:  { flex: 1, gap: 7 },
-  nsTrack:     { height: 4, backgroundColor: color.card2, borderRadius: 2, overflow: 'visible' },
-  nsFill:      { height: 4, backgroundColor: color.warmA, borderRadius: 2 },
-  nsPeakDot:   { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: color.copper,
-                 top: -1.5, marginLeft: -3.5, borderWidth: 1.5, borderColor: color.card },
+  nsBarOuter:  { flex: 1, gap: 9 },
+  nsTrack:     { height: 6, backgroundColor: color.card2, borderRadius: 3, overflow: 'visible' },
+  nsFill:      { height: 6, backgroundColor: color.warmA, borderRadius: 3 },
+  nsMetaRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nsMetaAction:{ ...type.eyebrow, fontSize: 8, color: color.warmA, letterSpacing: 0.8 },
+  nsPeakDot:   { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: color.copper,
+                 top: -1, marginLeft: -4, borderWidth: 1.5, borderColor: color.card },
   nsMeta:      { ...type.eyebrow, fontSize: 8, color: color.faint, letterSpacing: 0.8 },
   // TODAY hero
   heroCard:  { overflow: 'hidden', marginBottom: space.md, borderWidth: 1, borderColor: '#2A2114' },
