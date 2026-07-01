@@ -11,14 +11,13 @@ import {
   daysToCheckpoint, getLast30Days, get, set,
 } from '../utils/storage';
 import { getDailyRead } from '../services/ai';
-import LinearGradient from 'react-native-linear-gradient';
-import { Pill, Droplet, Sun, Shield, Check, Lightning, Cigarette } from '../components/Icon';
+import { Pill, Droplet, Sun, Shield, Check, Lightning, Cigarette, Star } from '../components/Icon';
 import Card from '../components/Card';
+import GradientText from '../components/GradientText';
 import { color, type, radius, space, font } from '../theme/tokens';
 
 const CAMPAIGN_START = new Date('2026-06-01');
 const CAMPAIGN_END   = new Date('2026-09-01');
-const TOTAL_DAYS     = Math.ceil((CAMPAIGN_END - CAMPAIGN_START) / 86400000);
 
 const isDutaDay = (d = new Date()) => d.getDay() === 1 || d.getDay() === 4;
 
@@ -48,15 +47,15 @@ const MED = [
 // ── Completion ring (ring on right — accent, not centerpiece) ─────────────────
 
 function CompletionRing({ done, total }) {
-  const SIZE  = 76;
-  const SW    = 5.5;
+  const SIZE  = 68;
+  const SW    = 6;
   const r     = (SIZE - SW * 2) / 2;
   const cx    = SIZE / 2;
   const cy    = SIZE / 2;
   const circ  = 2 * Math.PI * r;
   const pct   = total > 0 ? done / total : 0;
   const allDone  = done === total && total > 0;
-  const arcColor = done > 0 ? color.warmA : color.faint;
+  const arcColor = allDone ? color.amber : done > 0 ? color.warmA : color.faint;
 
   return (
     <View style={ring.wrap}>
@@ -66,24 +65,24 @@ function CompletionRing({ done, total }) {
           <>
             <SvgCircle
               cx={cx} cy={cy} r={r}
-              stroke={arcColor} strokeWidth={SW + 9} fill="none"
-              strokeDasharray={`${pct * circ} ${circ}`}
-              strokeLinecap="round"
+              stroke={arcColor} strokeWidth={SW + 1.5} fill="none"
+              strokeDasharray={allDone ? undefined : `${pct * circ} ${circ}`}
+              strokeLinecap={allDone ? undefined : 'round'}
               rotation="-90" origin={`${cx},${cy}`}
-              opacity={0.15}
+              opacity={0.30}
             />
             <SvgCircle
               cx={cx} cy={cy} r={r}
               stroke={arcColor} strokeWidth={SW} fill="none"
-              strokeDasharray={`${pct * circ} ${circ}`}
-              strokeLinecap="round"
+              strokeDasharray={allDone ? undefined : `${pct * circ} ${circ}`}
+              strokeLinecap={allDone ? undefined : 'round'}
               rotation="-90" origin={`${cx},${cy}`}
             />
           </>
         )}
       </Svg>
       {allDone ? (
-        <Check size={20} color={color.warmA} />
+        <Check size={18} color={color.amber} />
       ) : (
         <Text style={[ring.label, { color: done > 0 ? color.warmA : color.faint }]}>
           {done}/{total}
@@ -98,17 +97,13 @@ function CompletionRing({ done, total }) {
 function MedChip({ med, status }) {
   const done    = status === 'done';
   const skipped = status === 'skipped';
-  const c       = done ? color.warmA : skipped ? color.red : ra(color.warmA, 0.40);
+  const txtColor    = done ? med.accent : skipped ? color.red : ra(med.accent, 0.45);
+  const bgColor     = done ? ra(med.accent, 0.14) : skipped ? ra(color.red, 0.07) : 'transparent';
+  const borderColor = done ? ra(med.accent, 0.35) : skipped ? ra(color.red, 0.18) : color.line;
   return (
-    <View style={[
-      chip.wrap,
-      {
-        backgroundColor: done ? ra(color.warmA, 0.10) : skipped ? ra(color.red, 0.07) : 'transparent',
-        borderColor:     done ? '#3A2E18' : skipped ? ra(color.red, 0.18) : color.line,
-      },
-    ]}>
-      <med.Icon size={13} color={c} />
-      <Text style={[chip.label, { color: c }]}>{med.label}</Text>
+    <View style={[chip.wrap, { backgroundColor: bgColor, borderColor }]}>
+      <med.Icon size={13} color={txtColor} />
+      <Text style={[chip.label, { color: txtColor }]}>{med.label}</Text>
       {done    && <Text style={[chip.status, { color: color.warmA }]}>✓</Text>}
       {skipped && <Text style={[chip.status, { color: color.red }]}>✕</Text>}
     </View>
@@ -220,7 +215,7 @@ export default function Overview({ navigation }) {
         setTodayCI(ci);
         setStreak(str);
         const full = rec7.filter(c => c.oralMinoxidil && c.topicalMinoxidil).length;
-        const adh  = rec7.length ? Math.round((full / rec7.length) * 100) : null;
+        const adh  = Math.round((full / 7) * 100);
         setAdherence7d(adh);
         setRecoveryLog(Array.isArray(rlog) ? rlog : []);
         setBloodworkAt(bw?.testedAt || null);
@@ -231,7 +226,7 @@ export default function Overview({ navigation }) {
           : null;
         setAvg30dCigs(cigAvg);
 
-        setDailyReadLoading(true);
+        if (!dailyRead) setDailyReadLoading(true);
         getDailyRead({
           streak: str, adherence7d: adh, todayLogged: ci !== null,
           cigsToday: ci?.cigarettes ?? 0, avg30dCigs: cigAvg,
@@ -240,7 +235,7 @@ export default function Overview({ navigation }) {
           if (res) setDailyRead(res);
           setDailyReadLoading(false);
         }).catch(() => { setDailyReadLoading(false); });
-      }).catch(() => {});
+      }).catch(e => console.warn('[Overview] data load failed', e));
     }, [])
   );
 
@@ -263,6 +258,8 @@ export default function Overview({ navigation }) {
   const doneMeds   = activeMeds.filter(m => medStatus(m.key) === 'done').length;
   const allDone    = doneMeds === activeMeds.length && activeMeds.length > 0;
   const nextDueMed = activeMeds.find(m => medStatus(m.key) === 'pending');
+  const heroPct      = activeMeds.length > 0 ? doneMeds / activeMeds.length : 0;
+  const heroBarColor = allDone ? color.amber : doneMeds > 0 ? color.warmA : color.faint;
 
   const adherenceColor = adherence7d == null ? color.dim
     : adherence7d >= 80 ? color.warmA
@@ -276,13 +273,13 @@ export default function Overview({ navigation }) {
     heroSub        = `${activeMeds.length} treatments due today`;
   } else if (allDone) {
     heroTitle      = 'All done';
-    heroTitleColor = color.warmA;
+    heroTitleColor = color.amber;
     heroSub        = 'Protocol complete';
   } else {
     heroTitle      = nextDueMed
       ? `${nextDueMed.label} due ${nextDueMed.timing === 'Bedtime' ? 'tonight' : nextDueMed.timing === 'Anytime' ? 'today' : 'soon'}`
       : 'Almost done';
-    heroTitleColor = color.warmA;
+    heroTitleColor = color.amber;
     heroSub        = nextDueMed
       ? `${nextDueMed.time ?? nextDueMed.timing} · ${doneMeds} of ${activeMeds.length} done`
       : `${doneMeds} of ${activeMeds.length} done`;
@@ -304,15 +301,15 @@ export default function Overview({ navigation }) {
   // Signals
   const signals = [];
   if (streak > 0 && !todayCI) {
-    signals.push({ key: 'risk', Ic: Lightning, c: color.amber, bold: 'Streak at risk', text: ` — log today to keep your ${streak}-day run`, tag: null });
+    signals.push({ id: 'risk', Ic: Lightning, c: color.amber, bold: 'Streak at risk', text: ` — log today to keep your ${streak}-day run`, tag: null });
   } else if (streak > 0 && allDone) {
-    signals.push({ key: 'streak', Ic: Check, c: color.green, bold: 'Streak secured', text: ` through today. Day ${streak} — keep building.`, tag: null });
+    signals.push({ id: 'streak', Ic: Check, c: color.green, bold: 'Streak secured', text: ` through today. Day ${streak} — keep building.`, tag: null });
   }
   if ((todayCI?.cigarettes ?? 0) > 0 && avg30dCigs != null) {
     const n       = todayCI.cigarettes;
     const diff    = parseFloat((n - avg30dCigs).toFixed(1));
     const compare = diff <= 0 ? 'on track to beat your avg' : `${diff} above your avg`;
-    signals.push({ key: 'cigs', Ic: Cigarette, c: color.red, bold: `${n} cigarette${n !== 1 ? 's' : ''}`, text: ` so far — ${compare}`, tag: '#1\nlever' });
+    signals.push({ id: 'cigs', Ic: Cigarette, c: color.red, bold: `${n} cigarette${n !== 1 ? 's' : ''}`, text: ` so far — ${compare}`, tag: '#1\nlever' });
   }
 
   const handleSaveRecovery = async (value) => {
@@ -332,12 +329,15 @@ export default function Overview({ navigation }) {
 
       {/* 1 ── Header ─────────────────────────────────────────────────────────── */}
       <Text style={s.eyebrow}>Campaign · Phase 1 · Day {dayNum}</Text>
-      <Text style={s.title}>Overview</Text>
+      <GradientText style={s.title} colors={['#FFB020', '#FF8C30']}>Overview</GradientText>
 
       {/* 2 ── North-star strip ───────────────────────────────────────────────── */}
       <Card flush style={s.nsCard}>
         <View style={s.nsRow}>
           <TouchableOpacity style={s.nsMain} onPress={() => setEditingRecovery(true)} activeOpacity={0.75}>
+            <View style={s.nsIconBox}>
+              <Star size={14} color={color.bg} filled />
+            </View>
             <Text style={s.nsNum}>{`${Math.round(currentRecovery ?? 0)}%`}</Text>
             <View style={s.nsBarOuter}>
               <View style={s.nsTrack}>
@@ -359,16 +359,17 @@ export default function Overview({ navigation }) {
         {/* Title row: BIG text LEFT, ring RIGHT */}
         <View style={s.heroTop}>
           <View style={s.heroInfo}>
-            <Text style={[s.heroTitle, { color: heroTitleColor }]}>{heroTitle}</Text>
+            <Text style={[s.heroTitle, heroTitleColor !== color.txt && s.heroTitleGlow, { color: heroTitleColor }]}>{heroTitle}</Text>
             <Text style={s.heroSub}>{heroSub}</Text>
+            <View style={s.heroBarTrack}>
+              <View style={[s.heroBarFill, { width: `${heroPct * 100}%`, backgroundColor: heroBarColor }]} />
+            </View>
             {!todayCI && (
-              <TouchableOpacity onPress={() => navigation.navigate('Check-in')} activeOpacity={0.85} style={{ marginTop: 16 }}>
-                <LinearGradient
-                  colors={['#FFB020', '#FF6B4A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={{ paddingVertical: 13, borderRadius: radius.row, alignItems: 'center' }}
-                >
-                  <Text style={s.logBtnTxt}>Log today</Text>
-                </LinearGradient>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Check-in')} activeOpacity={0.85}
+                style={{ marginTop: 14, paddingVertical: 20, borderRadius: radius.row, alignItems: 'center', backgroundColor: color.warmA }}
+              >
+                <Text style={s.logBtnTxt}>Log today</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -445,13 +446,13 @@ export default function Overview({ navigation }) {
       {signals.length > 0 ? (
         <>
           <Text style={s.sectionLabel}>TODAY'S SIGNALS</Text>
-          {signals.map(sig => <SignalCard key={sig.key} {...sig} />)}
+          {signals.map(sig => <SignalCard key={sig.id} {...sig} />)}
         </>
       ) : null}
 
       {/* 6 ── Coming up ──────────────────────────────────────────────────────── */}
       <Text style={s.sectionLabel}>COMING UP</Text>
-      <Card flush>
+      <Card flush style={{ borderWidth: 1, borderColor: '#2A2114' }}>
         {(!allDone && nextDueMed) ? (
           <AheadRow
             dateTag={nextDueMed.timing === 'Bedtime' ? 'Tonight' : 'Today'}
@@ -488,14 +489,15 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
 
   eyebrow: { ...type.eyebrow, color: ra(color.warmA, 0.65), marginBottom: 6 },
-  title:   { ...type.screenTitle, color: color.txt, marginBottom: 20 },
+  title:   { ...type.screenTitle, fontSize: 38, letterSpacing: -1.2, marginBottom: 22 },
 
   // North-star strip
-  nsCard:      { overflow: 'hidden', marginBottom: space.md },
+  nsCard:      { overflow: 'hidden', marginBottom: space.md, borderWidth: 1, borderColor: '#2A2114' },
   nsRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: space.lg },
   nsMain:      { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nsNum:       { fontFamily: font.display, fontSize: 30, letterSpacing: -1.5, color: color.warmA,
-                 textShadowColor: ra(color.warmA, 0.30), textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 },
+  nsIconBox:   { width: 28, height: 28, borderRadius: 9, backgroundColor: color.warmA,
+                 alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  nsNum:       { fontFamily: font.display, fontSize: 30, letterSpacing: -1.5, color: color.txt },
   nsBarOuter:  { flex: 1, gap: 7 },
   nsTrack:     { height: 4, backgroundColor: color.card2, borderRadius: 2, overflow: 'visible' },
   nsFill:      { height: 4, backgroundColor: color.warmA, borderRadius: 2 },
@@ -503,25 +505,28 @@ const s = StyleSheet.create({
                  top: -1.5, marginLeft: -3.5, borderWidth: 1.5, borderColor: color.card },
   nsMeta:      { ...type.eyebrow, fontSize: 8, color: color.faint, letterSpacing: 0.8 },
   // TODAY hero
-  heroCard:  { overflow: 'hidden', marginBottom: space.md },
-  heroTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 22, paddingBottom: 18 },
+  heroCard:  { overflow: 'hidden', marginBottom: space.md, borderWidth: 1, borderColor: '#2A2114' },
+  heroTop:   { flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 28, paddingBottom: 24 },
   heroInfo:  { flex: 1 },
-  heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 8 },
-  heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim },
-  logBtnTxt: { fontSize: 14, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3 },
+  heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 10 },
+  heroTitleGlow: { textShadowColor: ra(color.amber, 0.30), textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 },
+  heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim, lineHeight: 18 },
+  heroBarTrack: { marginTop: 14, height: 4, borderRadius: 2, backgroundColor: color.line, overflow: 'hidden' },
+  heroBarFill:  { height: '100%', borderRadius: 2 },
+  logBtnTxt: { fontSize: 15, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3 },
 
-  chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 14, paddingBottom: 16,
-             borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line, paddingTop: 16 },
+  chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, paddingBottom: 20,
+             borderTopWidth: 1, borderTopColor: '#2A2114', paddingTop: 20 },
 
-  statsRow: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  stat:     { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#2A2114' },
+  stat:     { flex: 1, alignItems: 'center', paddingVertical: 18, gap: 4 },
   statDiv:  { width: StyleSheet.hairlineWidth, backgroundColor: color.line, alignSelf: 'stretch', marginVertical: 10 },
   statNum:  { fontFamily: font.display, fontSize: 22, letterSpacing: -1, lineHeight: 26 },
   statUnit: { fontFamily: font.displaySemi, fontSize: 12, letterSpacing: -0.3, marginBottom: 2 },
   statLbl:  { ...type.eyebrow, fontSize: 8 },
 
   // Today's read
-  readCard:   { marginBottom: space.md, backgroundColor: '#16100A', borderColor: '#2A2114' },
+  readCard:   { marginBottom: space.md, borderColor: '#2A2114' },
   readHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   readIconBox:{ width: 26, height: 26, borderRadius: 9, backgroundColor: color.warmA,
                 alignItems: 'center', justifyContent: 'center' },
@@ -534,13 +539,13 @@ const s = StyleSheet.create({
   skLine:     { height: 11, borderRadius: 6, backgroundColor: color.line, width: '100%' },
 
   // Signals
-  sectionLabel: { ...type.eyebrow, color: color.faint, marginBottom: 10, marginTop: 4 },
+  sectionLabel: { ...type.eyebrow, color: color.faint, marginBottom: 12, marginTop: 8 },
 
   // Coming up
 });
 
 const ring = StyleSheet.create({
-  wrap:  { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  wrap:  { width: 68, height: 68, marginTop: 4, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   label: { fontFamily: font.displaySemi, fontSize: 17, letterSpacing: -0.5 },
 });
 
@@ -553,7 +558,7 @@ const chip = StyleSheet.create({
 });
 
 const sig = StyleSheet.create({
-  card: { marginBottom: 8 },
+  card: { marginBottom: 8, borderWidth: 1, borderColor: ra(color.amber, 0.18) },
   row:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: { width: 32, height: 32, borderRadius: radius.row, alignItems: 'center', justifyContent: 'center',
           borderWidth: StyleSheet.hairlineWidth, flexShrink: 0 },
