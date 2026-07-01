@@ -262,7 +262,6 @@ export default function Overview({ navigation }) {
   const doneMeds   = activeMeds.filter(m => medStatus(m.key) === 'done').length;
   const allDone    = doneMeds === activeMeds.length && activeMeds.length > 0;
   const nextDueMed = activeMeds.find(m => medStatus(m.key) === 'pending');
-  const heroPct      = activeMeds.length > 0 ? doneMeds / activeMeds.length : 0;
   const heroBarColor = allDone ? color.amber : doneMeds > 0 ? color.warmA : color.faint;
 
   const adherenceColor = adherence7d == null ? color.dim
@@ -375,8 +374,13 @@ export default function Overview({ navigation }) {
           <View style={s.heroInfo}>
             <Text style={[s.heroTitle, heroTitleColor !== color.txt && s.heroTitleGlow, { color: heroTitleColor }]}>{heroTitle}</Text>
             <Text style={s.heroSub}>{heroSub}</Text>
-            <View style={s.heroBarTrack}>
-              <View style={[s.heroBarFill, { width: `${heroPct * 100}%`, backgroundColor: heroBarColor }]} />
+            <View style={s.heroSegments}>
+              {activeMeds.map(m => (
+                <View
+                  key={m.id}
+                  style={[s.heroSegment, { backgroundColor: medStatus(m.key) === 'done' ? heroBarColor : color.line }]}
+                />
+              ))}
             </View>
             {!todayCI && (
               <TouchableOpacity
@@ -527,8 +531,8 @@ const s = StyleSheet.create({
   heroTitle: { fontFamily: font.display, fontSize: 32, letterSpacing: -1, lineHeight: 35, marginBottom: 10 },
   heroTitleGlow: { textShadowColor: ra(color.amber, 0.30), textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 },
   heroSub:   { fontSize: 13, fontFamily: font.body, color: color.dim, lineHeight: 18 },
-  heroBarTrack: { marginTop: 14, height: 4, borderRadius: 2, backgroundColor: color.line, overflow: 'hidden' },
-  heroBarFill:  { height: '100%', borderRadius: 2 },
+  heroSegments: { flexDirection: 'row', gap: 5, marginTop: 14 },
+  heroSegment:  { flex: 1, height: 5, borderRadius: 2.5 },
   logBtnTxt: { fontSize: 15, fontWeight: '700', color: '#1A1000', letterSpacing: 0.3 },
 
   chipRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, paddingBottom: 20,
@@ -545,7 +549,8 @@ const s = StyleSheet.create({
   readCard:   { marginBottom: space.md, borderColor: '#2A2114' },
   readHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   readIconBox:{ width: 26, height: 26, borderRadius: 9, backgroundColor: color.warmA,
-                alignItems: 'center', justifyContent: 'center' },
+                alignItems: 'center', justifyContent: 'center',
+                shadowColor: color.warmA, shadowOffset: { width: 0, height: 0 }, shadowRadius: 8, shadowOpacity: 0.6 },
   readEyebrow:{ ...type.eyebrow, color: color.faint, flex: 1 },
   readCached: { ...type.eyebrow, fontSize: 8, color: color.faint },
   readBody:   { fontSize: 14, lineHeight: 22 },
