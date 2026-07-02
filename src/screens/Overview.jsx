@@ -200,6 +200,7 @@ export default function Overview({ navigation }) {
   const [bloodworkAt, setBloodworkAt]           = useState(null);
   const [dailyRead, setDailyRead]               = useState(null);   // { observe, action, cachedAt } | null
   const [dailyReadLoading, setDailyReadLoading] = useState(false);
+  const [dailyReadNoApiKey, setDailyReadNoApiKey] = useState(false);
   const [latestScalpVerdict, setLatestScalpVerdict] = useState(null); // 'improved'|'stable'|'worse'|null, current month only
 
   useFocusEffect(
@@ -236,7 +237,8 @@ export default function Overview({ navigation }) {
           cigsToday: ci?.cigarettes ?? 0, avg30dCigs: cigAvg,
           sleep: ci?.sleep ?? null, stress: ci?.stress ?? null,
         }).then(res => {
-          if (res) setDailyRead(res);
+          if (res?.noApiKey) setDailyReadNoApiKey(true);
+          else if (res) setDailyRead(res);
           setDailyReadLoading(false);
         }).catch(() => { setDailyReadLoading(false); });
       }).catch(e => console.warn('[Overview] data load failed', e));
@@ -455,6 +457,8 @@ export default function Overview({ navigation }) {
               </>
             ) : null}
           </Text>
+        ) : dailyReadNoApiKey ? (
+          <Text style={s.readObserve}>Set your Claude API key in the Ask Claude tab to get a daily read.</Text>
         ) : (
           <Text style={s.readObserve}>Nothing to read yet — check back later.</Text>
         )}

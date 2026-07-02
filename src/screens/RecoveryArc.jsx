@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { launchCamera } from 'react-native-image-picker';
 import {
-  get, getTodayKey, getScalpPhotos, uploadScalpPhoto, saveScalpPhotoRecord,
+  get, getTodayKey, getScalpPhotos, captureScalpPhoto,
   getScalpPhotoSignedUrl, fetchImageAsBase64,
 } from '../utils/storage';
 import { getCrownAssessment } from '../services/ai';
@@ -25,13 +25,15 @@ function ThumbRow({ photos, urls }) {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: space.md }}>
       {photos.map(p => (
         <View key={p.id} style={s.thumbWrap}>
-          {urls[p.storage_path] ? (
-            <Image source={{ uri: urls[p.storage_path] }} style={s.thumb} />
+          {p.base64 || urls[p.storage_path] ? (
+            <Image source={{ uri: p.base64 ? `data:image/jpeg;base64,${p.base64}` : urls[p.storage_path] }} style={s.thumb} />
           ) : (
             <View style={[s.thumb, s.thumbPlaceholder]} />
           )}
           <Text style={s.thumbDate}>{p.date}</Text>
-          {p.verdict && (
+          {p.synced === false ? (
+            <Text style={[s.thumbVerdict, { color: color.faint }]}>Syncing…</Text>
+          ) : p.verdict && (
             <Text style={[s.thumbVerdict, { color: verdictColor(p.verdict) }]}>{verdictLabel(p.verdict)}</Text>
           )}
         </View>
@@ -45,6 +47,7 @@ export default function RecoveryArc({ navigation }) {
   const [recoveryLog, setRecoveryLog] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [urls, setUrls] = useState({});
+  const urlsRef = useRef({});
   const [capturing, setCapturing] = useState(false);
 
   useFocusEffect(useCallback(() => {
@@ -54,9 +57,13 @@ export default function RecoveryArc({ navigation }) {
       setPhotos(scalpPhotos);
 
       // Lazily resolve signed URLs for whatever we don't already have cached
+      // (urlsRef, not state, since this closure only runs once per focus)
       scalpPhotos.forEach(p => {
+        if (!p.storage_path || urlsRef.current[p.storage_path]) return;
         getScalpPhotoSignedUrl(p.storage_path).then(url => {
-          if (url) setUrls(prev => ({ ...prev, [p.storage_path]: url }));
+          if (!url) return;
+          urlsRef.current = { ...urlsRef.current, [p.storage_path]: url };
+          setUrls(prev => ({ ...prev, [p.storage_path]: url }));
         });
       });
     })();
@@ -86,27 +93,28 @@ export default function RecoveryArc({ navigation }) {
     setCapturing(true);
     try {
       const dateStr = getTodayKey();
-      const storagePath = await uploadScalpPhoto(asset.base64, dateStr);
-
+      const toB64 = (p) => !p ? null : p.base64 ? Promise.resolve(p.base64) : getScalpPhotoSignedUrl(p.storage_path).then(u => u && fetchImageAsBase64(u));
       const baseline = photos[0];
       const previous = photos[photos.length - 1];
-      const [baselineB64, previousB64] = await Promise.all([
-        baseline ? getScalpPhotoSignedUrl(baseline.storage_path).then(u => u && fetchImageAsBase64(u)) : null,
-        previous ? getScalpPhotoSignedUrl(previous.storage_path).then(u => u && fetchImageAsBase64(u)) : null,
-      ]);
+      const [baselineB64, previousB64] = await Promise.all([toB64(baseline), toB64(previous)]);
 
       const assessment = await getCrownAssessment({ baselineB64, previousB64, currentB64: asset.base64 });
       if (assessment?.noApiKey) {
         Alert.alert('API key needed', 'Set your Claude API key in the Ask Claude tab to get an AI verdict. Your photo was still saved.');
+      } else if (!assessment?.verdict) {
+        Alert.alert('AI read failed', 'Your photo was saved, but the AI comparison couldn\'t complete this time. You can try again next month.');
       }
 
-      await saveScalpPhotoRecord({
+      const saved = await captureScalpPhoto({
         date: dateStr,
-        storage_path: storagePath,
+        base64: asset.base64,
         verdict: assessment?.verdict ?? null,
         confidence: assessment?.confidence ?? null,
         notes: assessment?.notes ?? (assessment?.error || ''),
       });
+      if (!saved.synced) {
+        Alert.alert('Saved offline', 'No connection right now — your photo is saved on this device and will upload automatically next time you\'re online.');
+      }
 
       const refreshed = await getScalpPhotos();
       setPhotos(refreshed);

@@ -67,7 +67,14 @@ export default function AddProtocolSheet({ visible, onClose, onAdded }) {
   }, [visible]);
 
   const loadSuggestions = useCallback(async () => {
-    if (suggestions.length > 0) return;
+    if (suggestions.length > 0) {
+      // Suggestion list already fetched this session — just refresh added/dedupe
+      // status, since a protocol may have been added elsewhere since last open.
+      const statuses = {};
+      await Promise.all(suggestions.map(async s => { statuses[s.name] = await isProtocolAdded(s.name); }));
+      setAddedNames(statuses);
+      return;
+    }
     setLoadingSuggestions(true);
     const results = await getSuggestedProtocols();
     const statuses = {};
@@ -75,7 +82,7 @@ export default function AddProtocolSheet({ visible, onClose, onAdded }) {
     setSuggestions(results);
     setAddedNames(statuses);
     setLoadingSuggestions(false);
-  }, [suggestions.length]);
+  }, [suggestions]);
 
   const handleCreate = async () => {
     if (!name.trim()) return;

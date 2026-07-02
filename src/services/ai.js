@@ -504,7 +504,7 @@ Return ONLY a JSON object (no markdown, no code fences, no other text):
 {"observe":"one factual sentence about a specific pattern in the numbers","action":"one sentence — the most impactful non-obvious insight or action lever right now, precise and urgent"}
 Be direct, specific to the numbers. No generic advice. No greeting.`;
 
-// Returns { observe, action, cachedAt } | null
+// Returns { observe, action, cachedAt } | { noApiKey: true } | null (null = call failed)
 export async function getDailyRead(metrics) {
   const _d = new Date();
   const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
@@ -518,7 +518,7 @@ export async function getDailyRead(metrics) {
   } catch {}
 
   const apiKey = await get('api_key', '');
-  if (!apiKey) return null;
+  if (!apiKey) return { noApiKey: true };
 
   const msg = `Streak: ${metrics.streak}d. 7d adherence: ${metrics.adherence7d ?? '—'}%. Today: ${metrics.todayLogged ? 'logged' : 'not yet logged'}. Cigs today: ${metrics.cigsToday ?? 0} vs 30-day avg: ${metrics.avg30dCigs ?? '—'}. Sleep: ${metrics.sleep ?? '—'}h. Stress: ${metrics.stress ?? '—'}.`;
 

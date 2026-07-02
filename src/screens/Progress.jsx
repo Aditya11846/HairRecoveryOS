@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
   Modal, Pressable, Image,
@@ -179,6 +179,7 @@ export default function Progress({ navigation }) {
   const [showModal, setShowModal]   = useState(false);
   const [latestScalpPhoto, setLatestScalpPhoto] = useState(null);
   const [latestScalpPhotoUrl, setLatestScalpPhotoUrl] = useState(null);
+  const latestScalpPhotoUrlPath = useRef(null);
   const todayStr = getTodayKey();
 
   useFocusEffect(
@@ -201,7 +202,10 @@ export default function Progress({ navigation }) {
 
         const latest = scalpPhotos.length ? scalpPhotos[scalpPhotos.length - 1] : null;
         setLatestScalpPhoto(latest);
-        if (latest) getScalpPhotoSignedUrl(latest.storage_path).then(setLatestScalpPhotoUrl);
+        if (latest?.storage_path && latestScalpPhotoUrlPath.current !== latest.storage_path) {
+          latestScalpPhotoUrlPath.current = latest.storage_path;
+          getScalpPhotoSignedUrl(latest.storage_path).then(setLatestScalpPhotoUrl);
+        }
       }).catch(() => {});
     }, [])
   );
@@ -212,16 +216,20 @@ export default function Progress({ navigation }) {
     await set('phase1', next);
   };
 
-  // Cigarette data for AreaChart (last 30 days, newest last)
-  const cigValues = days.map(d => d.data?.cigarettes ?? 0);
+  // Cigarette data for AreaChart (last 30 days, newest last) — only days actually
+  // logged, so unlogged gaps don't show up as misleading "0 cigarettes" flatline
+  const loggedDays  = days.filter(d => d.hasCheckin);
+  const cigValues   = loggedDays.map(d => d.data?.cigarettes ?? 0);
   const sleepValues = days.map(d => d.data?.sleep ?? 0).filter(v => v > 0);
   const stressValues = days.map(d => d.data?.stress ?? 0).filter(v => v > 0);
 
   // Cigarette trend
-  const last7cigs  = days.slice(0, 7).reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / 7;
-  const prev7cigs  = days.slice(7, 14).reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / 7;
+  const last7Logged = loggedDays.slice(-7);
+  const prev7Logged = loggedDays.slice(-14, -7);
+  const last7cigs  = last7Logged.length ? last7Logged.reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / last7Logged.length : 0;
+  const prev7cigs  = prev7Logged.length ? prev7Logged.reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / prev7Logged.length : 0;
   const cigChange  = prev7cigs > 0 ? Math.round(((last7cigs - prev7cigs) / prev7cigs) * 100) : null;
-  const avgCigs    = days.length ? (days.reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / days.length).toFixed(1) : '—';
+  const avgCigs    = loggedDays.length ? (loggedDays.reduce((s, d) => s + (d.data?.cigarettes ?? 0), 0) / loggedDays.length).toFixed(1) : '—';
 
   // Bloodwork summary
   const bwLogged = bloodworkData?.values
@@ -258,8 +266,8 @@ export default function Progress({ navigation }) {
       <TouchableOpacity onPress={() => navigation.navigate('RecoveryArc')} activeOpacity={0.8}>
         <Card style={s.arcCard}>
           <View style={s.arcRow}>
-            {latestScalpPhotoUrl ? (
-              <Image source={{ uri: latestScalpPhotoUrl }} style={s.arcThumb} />
+            {latestScalpPhoto?.base64 || latestScalpPhotoUrl ? (
+              <Image source={{ uri: latestScalpPhoto?.base64 ? `data:image/jpeg;base64,${latestScalpPhoto.base64}` : latestScalpPhotoUrl }} style={s.arcThumb} />
             ) : (
               <View style={[s.arcThumb, s.arcThumbEmpty]} />
             )}
@@ -267,7 +275,7 @@ export default function Progress({ navigation }) {
               {latestScalpPhoto ? (
                 <>
                   <Text style={s.arcTitle}>
-                    {latestScalpPhoto.verdict === 'improved' ? 'Improved' : latestScalpPhoto.verdict === 'worse' ? 'Worse' : latestScalpPhoto.verdict === 'stable' ? 'Stable' : 'Photo logged'}
+                    {latestScalpPhoto.synced === false ? 'Syncing…' : latestScalpPhoto.verdict === 'improved' ? 'Improved' : latestScalpPhoto.verdict === 'worse' ? 'Worse' : latestScalpPhoto.verdict === 'stable' ? 'Stable' : 'Photo logged'}
                   </Text>
                   <Text style={s.arcSub}>Latest photo · {latestScalpPhoto.date}</Text>
                 </>

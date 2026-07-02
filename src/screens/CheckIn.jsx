@@ -478,7 +478,7 @@ export default function CheckIn() {
     triggerBurst();
     setHadPrior(true);
     getStreakCount().then(setStreak).catch(() => {});
-    cancelTodayReminder();
+    cancelTodayReminder().catch(() => {});
     setTimeout(() => setSaved(false), 3000);
   };
 

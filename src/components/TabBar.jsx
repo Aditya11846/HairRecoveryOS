@@ -24,11 +24,16 @@ export default function TabBar({ state, navigation }) {
           const focused = state.index === i;
           const iconColor = focused ? color.warmA : color.faint;
           const labelColor = focused ? color.warmA : color.faint;
+          const route = state.routes[i];
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigation.navigate(tab.name);
+          };
           return (
             <Pressable
               key={tab.name}
               style={s.item}
-              onPress={() => navigation.navigate(tab.name)}
+              onPress={onPress}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <tab.Icon color={iconColor} size={22} focused={focused} />

@@ -30,7 +30,7 @@ import AskClaude from './src/screens/AskClaude';
 import Bloodwork from './src/screens/Bloodwork';
 import RecoveryArc from './src/screens/RecoveryArc';
 import TabBar from './src/components/TabBar';
-import { syncPendingCheckins } from './src/utils/storage';
+import { syncPendingCheckins, syncPendingScalpPhoto } from './src/utils/storage';
 import { initNotifications } from './src/services/notifications';
 import { color } from './src/theme/tokens';
 
@@ -88,10 +88,11 @@ function OverviewStack() {
 export default function App() {
   useEffect(() => {
     syncPendingCheckins();
+    syncPendingScalpPhoto();
     initNotifications();
     // Re-sync whenever the app returns to the foreground (covers offline → wifi reconnect)
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') syncPendingCheckins();
+      if (state === 'active') { syncPendingCheckins(); syncPendingScalpPhoto(); }
     });
     return () => sub.remove();
   }, []);

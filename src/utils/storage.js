@@ -330,9 +330,14 @@ export const daysToCheckpoint = () => {
 
 const SCALP_PHOTOS_BUCKET   = 'scalp-photos';
 const SCALP_PHOTOS_CACHE_KEY = `${PREFIX}scalp_photos_meta`;
+const SCALP_PHOTO_PENDING_KEY = `${PREFIX}scalp_photo_pending`;
 
-// Rows: { id, date, storage_path, verdict, confidence, notes, created_at }, oldest first
+// Rows: { id, date, storage_path, verdict, confidence, notes, created_at }, oldest first.
+// If a capture is still queued locally (offline at capture time), it's appended last
+// with synced:false and a `base64` field instead of storage_path, so the UI can show
+// it immediately and cadence-gating sees it without waiting on a network round trip.
 export const getScalpPhotos = async () => {
+  let rows;
   try {
     const { data, error } = await withTimeout(
       supabase.from('scalp_photos').select('*').order('date', { ascending: true }),
@@ -340,13 +345,54 @@ export const getScalpPhotos = async () => {
     );
     if (error || !data) {
       const raw = await AsyncStorage.getItem(SCALP_PHOTOS_CACHE_KEY);
-      return raw ? JSON.parse(raw) : [];
+      rows = raw ? JSON.parse(raw) : [];
+    } else {
+      await AsyncStorage.setItem(SCALP_PHOTOS_CACHE_KEY, JSON.stringify(data));
+      rows = data;
     }
-    await AsyncStorage.setItem(SCALP_PHOTOS_CACHE_KEY, JSON.stringify(data));
-    return data;
   } catch {
-    return [];
+    rows = [];
   }
+
+  const pending = await getPendingScalpPhoto();
+  if (pending && !rows.some(r => r.date === pending.date)) rows = [...rows, { ...pending, id: 'pending', synced: false }];
+  return rows;
+};
+
+export const getPendingScalpPhoto = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(SCALP_PHOTO_PENDING_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const trySyncScalpPhoto = async (pending) => {
+  try {
+    const storage_path = await uploadScalpPhoto(pending.base64, pending.date);
+    await saveScalpPhotoRecord({ date: pending.date, storage_path, verdict: pending.verdict, confidence: pending.confidence, notes: pending.notes });
+    await AsyncStorage.removeItem(SCALP_PHOTO_PENDING_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Retries a queued-but-unsynced capture — call on app foreground, mirroring syncPendingCheckins.
+export const syncPendingScalpPhoto = async () => {
+  const pending = await getPendingScalpPhoto();
+  if (pending) await trySyncScalpPhoto(pending);
+};
+
+// Offline-safe capture: persists locally first (so a network blip never loses the
+// photo/verdict), then attempts to sync immediately. Mirrors the saveCheckin /
+// syncPendingCheckins local-first pattern used for daily check-ins.
+export const captureScalpPhoto = async ({ date, base64, verdict, confidence, notes }) => {
+  const pending = { date, base64, verdict, confidence, notes };
+  await AsyncStorage.setItem(SCALP_PHOTO_PENDING_KEY, JSON.stringify(pending));
+  const synced = await trySyncScalpPhoto(pending);
+  return { ...pending, synced };
 };
 
 // base64Jpeg: raw base64 string, no "data:image/jpeg;base64," prefix
