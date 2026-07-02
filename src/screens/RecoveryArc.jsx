@@ -7,7 +7,7 @@ import {
   get, getTodayKey, getScalpPhotos, captureScalpPhoto,
   getScalpPhotoSignedUrl, fetchImageAsBase64,
 } from '../utils/storage';
-import { getCrownAssessment } from '../services/ai';
+import { getCrownAssessment, isLowCreditError } from '../services/ai';
 import RecoveryArcChart from '../components/RecoveryArc';
 import Card from '../components/Card';
 import { color, type, radius, space } from '../theme/tokens';
@@ -101,6 +101,8 @@ export default function RecoveryArc({ navigation }) {
       const assessment = await getCrownAssessment({ baselineB64, previousB64, currentB64: asset.base64 });
       if (assessment?.noApiKey) {
         Alert.alert('API key needed', 'Set your Claude API key in the Ask Claude tab to get an AI verdict. Your photo was still saved.');
+      } else if (isLowCreditError(assessment?.error)) {
+        Alert.alert('Out of API credits', 'Your Claude API credit balance is too low to get an AI verdict right now. Your photo was still saved.');
       } else if (!assessment?.verdict) {
         Alert.alert('AI read failed', 'Your photo was saved, but the AI comparison couldn\'t complete this time. You can try again next month.');
       }

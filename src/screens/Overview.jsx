@@ -201,6 +201,7 @@ export default function Overview({ navigation }) {
   const [dailyRead, setDailyRead]               = useState(null);   // { observe, action, cachedAt } | null
   const [dailyReadLoading, setDailyReadLoading] = useState(false);
   const [dailyReadNoApiKey, setDailyReadNoApiKey] = useState(false);
+  const [dailyReadLowCredit, setDailyReadLowCredit] = useState(false);
   const [latestScalpVerdict, setLatestScalpVerdict] = useState(null); // 'improved'|'stable'|'worse'|null, current month only
 
   useFocusEffect(
@@ -238,6 +239,7 @@ export default function Overview({ navigation }) {
           sleep: ci?.sleep ?? null, stress: ci?.stress ?? null,
         }).then(res => {
           if (res?.noApiKey) setDailyReadNoApiKey(true);
+          else if (res?.lowCredit) setDailyReadLowCredit(true);
           else if (res) setDailyRead(res);
           setDailyReadLoading(false);
         }).catch(() => { setDailyReadLoading(false); });
@@ -459,6 +461,8 @@ export default function Overview({ navigation }) {
           </Text>
         ) : dailyReadNoApiKey ? (
           <Text style={s.readObserve}>Set your Claude API key in the Ask Claude tab to get a daily read.</Text>
+        ) : dailyReadLowCredit ? (
+          <Text style={s.readObserve}>Your Claude API credit balance is too low — add credits to get a daily read.</Text>
         ) : (
           <Text style={s.readObserve}>Nothing to read yet — check back later.</Text>
         )}

@@ -16,6 +16,9 @@ const HEADERS = (apiKey) => ({
   'anthropic-dangerous-direct-browser-access': 'true',
 });
 
+// Anthropic returns this as a 400 with a message about credit balance, not a distinct status code
+export const isLowCreditError = (msg) => !!msg && /credit balance/i.test(msg);
+
 // Returns { result: Array|null, error: string|null } — never throws
 async function callClaude(apiKey, system, userMsg, maxTokens = 1024) {
   try {
@@ -85,7 +88,14 @@ async function callClaudeText(apiKey, system, userMsg, maxTokens = 200) {
       }),
     }, 20000);
     const rawBody = await res.text();
-    if (!res.ok) return { result: null, error: `HTTP ${res.status}` };
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const errData = JSON.parse(rawBody);
+        errMsg = errData?.error?.message || errMsg;
+      } catch {}
+      return { result: null, error: errMsg };
+    }
     let data;
     try { data = JSON.parse(rawBody); } catch (e) { return { result: null, error: e.message }; }
     const text = data.content?.find(b => b.type === 'text')?.text?.trim() || '';
@@ -504,7 +514,7 @@ Return ONLY a JSON object (no markdown, no code fences, no other text):
 {"observe":"one factual sentence about a specific pattern in the numbers","action":"one sentence — the most impactful non-obvious insight or action lever right now, precise and urgent"}
 Be direct, specific to the numbers. No generic advice. No greeting.`;
 
-// Returns { observe, action, cachedAt } | { noApiKey: true } | null (null = call failed)
+// Returns { observe, action, cachedAt } | { noApiKey: true } | { lowCredit: true } | null (null = call failed)
 export async function getDailyRead(metrics) {
   const _d = new Date();
   const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
@@ -522,8 +532,8 @@ export async function getDailyRead(metrics) {
 
   const msg = `Streak: ${metrics.streak}d. 7d adherence: ${metrics.adherence7d ?? '—'}%. Today: ${metrics.todayLogged ? 'logged' : 'not yet logged'}. Cigs today: ${metrics.cigsToday ?? 0} vs 30-day avg: ${metrics.avg30dCigs ?? '—'}. Sleep: ${metrics.sleep ?? '—'}h. Stress: ${metrics.stress ?? '—'}.`;
 
-  const { result: rawText } = await callClaudeText(apiKey, DAILY_READ_SYSTEM, msg, 300);
-  if (!rawText) return null;
+  const { result: rawText, error } = await callClaudeText(apiKey, DAILY_READ_SYSTEM, msg, 300);
+  if (!rawText) return isLowCreditError(error) ? { lowCredit: true } : null;
 
   let observe = rawText.trim(), action = '';
   try {
