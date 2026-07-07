@@ -17,6 +17,12 @@ const localDateStr = (d = new Date()) => {
 export const getTodayKey = () => localDateStr();
 export const getCheckinKey = (dateStr) => `${PREFIX}checkin_${dateStr}`;
 
+export const shiftDateStr = (dateStr, deltaDays) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + deltaDays);
+  return localDateStr(d);
+};
+
 // ─── Schema mapping ───────────────────────────────────────────────────────────
 
 const toSupabaseRow = (local, { includeCustomValues = true } = {}) => ({
@@ -30,8 +36,10 @@ const toSupabaseRow = (local, { includeCustomValues = true } = {}) => ({
   stress: typeof local.stress === 'number' ? local.stress : null,
   notes: local.notes || '',
   dutasteride: local.dutasteride ?? null,
-  ...(includeCustomValues && local.customValues && Object.keys(local.customValues).length > 0
-    ? { custom_values: local.customValues }
+  // water intake has no dedicated Supabase column yet — rides on the existing
+  // flexible custom_values JSONB blob under a reserved key to avoid a schema migration
+  ...(includeCustomValues && ((local.customValues && Object.keys(local.customValues).length > 0) || typeof local.water === 'number')
+    ? { custom_values: { ...(local.customValues || {}), ...(typeof local.water === 'number' ? { __water: local.water } : {}) } }
     : {}),
 });
 
@@ -42,6 +50,7 @@ const fromSupabaseRow = (row) => ({
   cigarettes: row.cigarettes ?? 0,
   sleep: row.sleep ?? 7,
   stress: row.stress ?? null,
+  water: row.custom_values?.__water ?? null,
   redLightComb: row.red_light,
   sheddingNoticed: row.shedding,
   notes: row.notes || '',
@@ -78,10 +87,10 @@ const pushToSupabase = async (local) => {
 
 // ─── Check-in ─────────────────────────────────────────────────────────────────
 
-export const saveCheckin = async (data) => {
-  const today = getTodayKey();
-  const record = { ...data, date: today, savedAt: new Date().toISOString(), synced: false };
-  await AsyncStorage.setItem(getCheckinKey(today), JSON.stringify(record));
+export const saveCheckin = async (data, dateStr) => {
+  const date = dateStr || getTodayKey();
+  const record = { ...data, date, savedAt: new Date().toISOString(), synced: false };
+  await AsyncStorage.setItem(getCheckinKey(date), JSON.stringify(record));
   pushToSupabase(record);
 };
 
