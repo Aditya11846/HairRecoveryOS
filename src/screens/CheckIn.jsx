@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Circle } from 'react-native-svg';
 import {
-  saveCheckin, loadCheckin, getTodayKey, getCustomProtocols,
+  saveCheckin, loadCheckin, getTodayKey, shiftDateStr, getCustomProtocols,
   removeCustomProtocol, getProtocolGuide, saveProtocolGuide, getStreakCount,
 } from '../utils/storage';
 import { fetchProtocolGuide } from '../services/ai';
@@ -212,6 +212,37 @@ function SleepRow({ value, onChange }) {
   );
 }
 
+// ─── Water Row ────────────────────────────────────────────────────────────────
+
+function WaterRow({ value, onChange }) {
+  const val = value ?? 2;
+  const displayColor = val >= 2 ? color.cool : val >= 1 ? color.warmA : color.red;
+  return (
+    <View style={slp.wrap}>
+      <View style={slp.header}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Droplet size={18} color={color.cool} />
+          <Text style={slp.label}>Water</Text>
+        </View>
+        <Text style={[slp.value, { color: displayColor }]}>{val.toFixed(2).replace(/\.?0+$/, '')}<Text style={slp.unit}> L</Text></Text>
+      </View>
+      <Slider
+        minimumValue={0} maximumValue={4} step={0.25}
+        value={val} onValueChange={onChange}
+        minimumTrackTintColor={color.cool}
+        maximumTrackTintColor={color.line2}
+        thumbTintColor={Platform.OS === 'android' ? color.cool : '#FFFFFF'}
+        style={slp.slider}
+      />
+      <View style={slp.markers}>
+        {['0L', '1L', '2L', '3L', '4L'].map(c => (
+          <Text key={c} style={slp.marker}>{c}</Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ─── Stress Row ───────────────────────────────────────────────────────────────
 
 const STRESS_OPTS = [
@@ -370,7 +401,7 @@ const QUICK_TAGS = ['Side effect', 'Missed window', 'Scalp irritation', 'Extra t
 
 const DEFAULT = {
   oralMinoxidil: null, topicalMinoxidil: null, dutasteride: null,
-  cigarettes: 0, sleep: 7, stress: 3, redLightComb: null,
+  cigarettes: 0, sleep: 7, stress: 3, water: 2, redLightComb: null,
   sheddingNoticed: null, notes: '',
 };
 
@@ -381,6 +412,7 @@ const isDutaDay = (d = new Date()) => d.getDay() === 1 || d.getDay() === 4;
 export default function CheckIn() {
   const insets = useSafeAreaInsets();
   const [form, setForm] = useState(DEFAULT);
+  const [selectedDate, setSelectedDate] = useState(getTodayKey());
   const [saved, setSaved] = useState(false);
   const [hadPrior, setHadPrior] = useState(false);
   const [streak, setStreak] = useState(0);
@@ -405,8 +437,9 @@ export default function CheckIn() {
   ).current;
 
   const today = getTodayKey();
-  const showDuta = isDutaDay();
-  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const isToday = selectedDate === today;
+  const showDuta = isDutaDay(new Date(selectedDate + 'T00:00:00'));
+  const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   const medCount = [
     form.oralMinoxidil === true,
@@ -417,7 +450,7 @@ export default function CheckIn() {
   const medTotal = showDuta ? 4 : 3;
 
   useEffect(() => {
-    Promise.all([loadCheckin(today), getStreakCount()]).then(([existing, str]) => {
+    Promise.all([loadCheckin(selectedDate), getStreakCount()]).then(([existing, str]) => {
       if (existing) {
         setForm(existing);
         setHadPrior(true);
@@ -429,7 +462,7 @@ export default function CheckIn() {
       }
       setStreak(str);
     }).catch(() => {});
-  }, [today]);
+  }, [selectedDate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -443,6 +476,8 @@ export default function CheckIn() {
 
   const field = key => val => { setForm(f => ({ ...f, [key]: val })); setSaved(false); };
   const customField = id => val => { setCustomValues(v => ({ ...v, [id]: val })); setSaved(false); };
+  const goPrevDay = () => setSelectedDate(d => shiftDateStr(d, -1));
+  const goNextDay = () => setSelectedDate(d => (d === today ? d : shiftDateStr(d, 1)));
 
   const triggerBurst = () => {
     Animated.sequence([
@@ -470,7 +505,7 @@ export default function CheckIn() {
     if (isSaving.current) return;
     isSaving.current = true;
     try {
-      await saveCheckin({ ...form, customValues });
+      await saveCheckin({ ...form, customValues }, selectedDate);
     } finally {
       isSaving.current = false;
     }
@@ -478,7 +513,7 @@ export default function CheckIn() {
     triggerBurst();
     setHadPrior(true);
     getStreakCount().then(setStreak).catch(() => {});
-    cancelTodayReminder().catch(() => {});
+    if (isToday) cancelTodayReminder().catch(() => {});
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -534,9 +569,22 @@ export default function CheckIn() {
           {/* Header */}
           <View style={s.header}>
             <View style={{ flex: 1 }}>
-              <Text style={s.eyebrow}>{dateLabel}</Text>
-              <Text style={s.title}>Log today</Text>
-              {hadPrior && !saved && (
+              <View style={s.dateNavRow}>
+                <TouchableOpacity onPress={goPrevDay} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} style={s.dateNavBtn} activeOpacity={0.7}>
+                  <Text style={s.dateNavTxt}>‹</Text>
+                </TouchableOpacity>
+                <Text style={s.eyebrow}>{dateLabel}</Text>
+                <TouchableOpacity onPress={goNextDay} disabled={isToday} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} style={[s.dateNavBtn, isToday && s.dateNavBtnDisabled]} activeOpacity={0.7}>
+                  <Text style={[s.dateNavTxt, isToday && s.dateNavTxtDisabled]}>›</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={s.title}>{isToday ? 'Log today' : 'Edit log'}</Text>
+              {!isToday && (
+                <View style={[s.priorBadge, s.pastDayBadge]}>
+                  <Text style={[s.priorBadgeTxt, s.pastDayBadgeTxt]}>Editing past day</Text>
+                </View>
+              )}
+              {isToday && hadPrior && !saved && (
                 <View style={s.priorBadge}>
                   <Text style={s.priorBadgeTxt}>Previously saved</Text>
                 </View>
@@ -681,6 +729,9 @@ export default function CheckIn() {
           <View style={[s.card, { marginTop: 10 }]}>
             <StressRow value={form.stress} onChange={field('stress')} />
           </View>
+          <View style={[s.card, { marginTop: 10 }]}>
+            <WaterRow value={form.water} onChange={field('water')} />
+          </View>
 
           {/* Observations */}
           <SectionHeader label="Observations" />
@@ -725,7 +776,7 @@ export default function CheckIn() {
             >
               <Text style={[s.saveTxt, (!canSave && !saved) && { color: color.faint }]}>
                 {saved ? '✓ Saved' : canSave
-                  ? 'Save today\'s log'
+                  ? (isToday ? 'Save today\'s log' : 'Save this day\'s log')
                   : `${trackable.filter(f => !f.filled).length} required field${trackable.filter(f => !f.filled).length === 1 ? '' : 's'} left`}
               </Text>
             </TouchableOpacity>
@@ -767,9 +818,16 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
   eyebrow: { ...type.eyebrow, marginBottom: 6, color: 'rgba(255,176,32,0.65)' },
+  dateNavRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dateNavBtn: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: color.card },
+  dateNavBtnDisabled: { opacity: 0.35 },
+  dateNavTxt: { fontSize: 15, fontWeight: '700', color: color.warmA, lineHeight: 16 },
+  dateNavTxtDisabled: { color: color.faint },
   title: { ...type.screenTitle, color: color.warmA },
   priorBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,176,32,0.12)', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
   priorBadgeTxt: { fontSize: 11, fontWeight: '600', color: color.warmA },
+  pastDayBadge: { backgroundColor: 'rgba(91,141,239,0.14)' },
+  pastDayBadgeTxt: { color: color.cool },
   headerBtns: { flexDirection: 'row', gap: 6, marginTop: 12 },
   hBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.row, backgroundColor: color.card },
   hBtnActive: { backgroundColor: 'rgba(255,176,32,0.12)' },
