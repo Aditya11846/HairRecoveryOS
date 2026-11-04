@@ -25,7 +25,7 @@ TIMELINE
 - Aug 2025: Peak — ~90% crown regrowth (north star)
 - Jan–Mar 2026: Treatment lapse, crown regressed
 - June 2026: Phase 1 baseline — ~55% crown, 4–5cm patch. Consistent since.
-- Nov 2026: ~75% crown. Thin zone ~2–3cm at whorl; follicles alive across it (mix of terminal + miniaturized hairs). Dr. Soni: "almost at recovery".
+- Nov 2026: ~60% crown. Dry like-for-like photos vs June 11: thin zone ~5–6cm, no measurable change in size. Follicles alive (fine hairs across the zone). Dr. Soni (3 Nov, in person): "almost at recovery". Trichoscopy pending to settle it.
 - Next checkpoint: Feb 2027. Target: surpass Aug 2025 peak by mid-2027.
 
 CURRENT PROTOCOL

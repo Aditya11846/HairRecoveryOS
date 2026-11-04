@@ -6,7 +6,7 @@ export const TIMELINE = [
   { date: 'Aug 2025', label: '~90% crown regrowth — peak response, north star target', type: 'milestone' },
   { date: 'Jan–Mar 2026', label: 'Treatment lapse — crown regressed', type: 'past' },
   { date: 'Jun 2026', label: 'Phase 1 baseline — ~55% crown, 4–5cm patch. Consistent since', type: 'milestone' },
-  { date: 'Nov 2026', label: '~75% crown, thin zone 2–3cm at whorl. Dr. Soni: "almost at recovery"', type: 'current' },
+  { date: 'Nov 2026', label: '~60% crown. Dry like-for-like: thin zone ~5–6cm, about the same as June', type: 'current' },
   { date: 'Feb 2027', label: 'Checkpoint — whorl visibly denser, trichoscopy re-check', type: 'goal' },
   { date: 'Mid 2027', label: 'Target — match or surpass Aug 2025 peak (~90%)', type: 'goal' },
 ];
