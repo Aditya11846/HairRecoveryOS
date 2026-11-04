@@ -35,4 +35,13 @@ export const PROTOCOL_DETAILS = [
     evidence: 'Very Strong — superior to finasteride in RCTs',
     notes: 'Inhibits both Type I and II 5α-reductase. Greater DHT suppression (~90% vs ~70%). 2× weekly protocol.',
   },
+  {
+    id: 'microneedling',
+    name: 'Microneedling',
+    dose: '1.5mm roller/pen · 1× per week',
+    timing: 'Fixed night weekly. Skip topical minoxidil for 24h after',
+    status: 'planned',
+    evidence: 'Strong as add-on — Dhurat 2013 RCT with minoxidil',
+    notes: 'Target crown + whorl. Stop at mild redness. Disinfect with 70% isopropyl. Replace roller every 10–15 uses. Skip if scalp is irritated.',
+  },
 ];
